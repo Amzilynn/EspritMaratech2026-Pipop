@@ -41,7 +41,7 @@ lerna-debug.log*
 .env.test.local
 .env.production.local
 .env.local
-
+geoepidemiology-profiling-a859cbb161fc.json
 # temp directory
 .temp
 .tmp

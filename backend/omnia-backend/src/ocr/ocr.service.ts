@@ -8,6 +8,7 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { createWorker } from 'tesseract.js';
 import { findBestMatch } from 'string-similarity';
+import FormData from 'form-data';
 
 /**
  * Robust Medical Knowledge Base
@@ -29,6 +30,7 @@ const MEDICAL_KNOWLEDGE_BASE = [
 export class OcrService {
     private readonly logger = new Logger(OcrService.name);
     private visionClient: ImageAnnotatorClient;
+    private readonly mlServiceUrl = process.env.ML_SERVICE_URL || 'http://localhost:8001';
 
     constructor(
         @InjectRepository(MedicationRecord)
@@ -43,17 +45,53 @@ export class OcrService {
 
     async analyzeImage(imageBuffer: Buffer): Promise<any> {
         let text = '';
-        if (this.visionClient) {
+
+        // 1. Try EasyOCR (Python Service) - Preferred "Easy OCR"
+        try {
+            this.logger.log('Attempting EasyOCR via ML Service...');
+            const formData = new FormData();
+            formData.append('file', imageBuffer, { filename: 'image.jpg' });
+
+            // Need to get headers from formData to set multipart boundary correctly
+            const headers = formData.getHeaders();
+
+            const response = await firstValueFrom(
+                this.httpService.post(`${this.mlServiceUrl}/ocr/extract`, formData, {
+                    headers: headers,
+                    timeout: 10000 // 10s timeout
+                })
+            );
+
+            if (response.data && response.data.text) {
+                text = response.data.text;
+                this.logger.log('EasyOCR success');
+            }
+        } catch (e) {
+            this.logger.warn(`EasyOCR failed: ${e.message}. Will try fallback methods.`);
+        }
+
+        // 2. Fallback to Google Vision if EasyOCR failed or returned empty
+        if (!text && this.visionClient) {
             try {
+                this.logger.log('Attempting Google Vision...');
                 const [result] = await this.visionClient.textDetection(imageBuffer);
                 text = result.fullTextAnnotation?.text || '';
-            } catch (e) { }
+            } catch (e) {
+                this.logger.warn(`Google Vision failed: ${e.message}`);
+            }
         }
+
+        // 3. Fallback to Tesseract.js (Pure Node/WASM)
         if (!text) {
-            const worker = await createWorker('fra');
-            const { data: { text: tesseractText } } = await worker.recognize(imageBuffer);
-            await worker.terminate();
-            text = tesseractText;
+            try {
+                this.logger.log('Attempting Tesseract.js...');
+                const worker = await createWorker('fra');
+                const { data: { text: tesseractText } } = await worker.recognize(imageBuffer);
+                await worker.terminate();
+                text = tesseractText;
+            } catch (e) {
+                this.logger.error(`Tesseract failed: ${e.message}`);
+            }
         }
 
         const detectedMedications = this.extractMedicalEntities(text);

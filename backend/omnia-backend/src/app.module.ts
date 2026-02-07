@@ -9,6 +9,8 @@ import { VisitsModule } from './visits/visits.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { OcrModule } from './ocr/ocr.module';
+import { IntelligenceModule } from './intelligence/intelligence.module';
+import { ResourcesModule } from './resources/resources.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { OcrModule } from './ocr/ocr.module';
     AuditModule,
     AuthModule,
     OcrModule,
+    IntelligenceModule,
+    ResourcesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
