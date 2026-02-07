@@ -1,9 +1,12 @@
 import {
-  LayoutDashboardIcon,BorderAllIcon,
+  LayoutDashboardIcon,
+  BorderAllIcon,
   AlertCircleIcon,
   CircleDotIcon,
   BoxMultiple1Icon,
-  LoginIcon, MoodHappyIcon, ApertureIcon, UserPlusIcon
+  MoodHappyIcon,
+  ApertureIcon,
+  UserPlusIcon
 } from 'vue-tabler-icons';
 
 export interface menu {
@@ -24,67 +27,83 @@ export interface menu {
 }
 
 const sidebarItem: menu[] = [
-  { header: 'Home' },
+  { header: 'Tableau de bord' },
   {
     title: 'Dashboard',
     icon: LayoutDashboardIcon,
     BgColor: 'primary',
     to: '/'
   },
-  { header: 'Ui components' },
+  { header: 'Gestion' },
   {
-    title: "Alert",
-    icon: AlertCircleIcon,
-    BgColor: 'primary',
-    to: "/ui/alerts",
-    
-  },
-  {
-    title: "Button",
-    icon: CircleDotIcon,
-    BgColor: 'primary',
-    to: "/ui/buttons",
-  },
-  {
-    title: "Cards",
-    icon: BoxMultiple1Icon,
-    BgColor: 'primary',
-    to: "/ui/cards",
-  },
-  {
-    title: "Tables",
-    icon: BorderAllIcon,
-    BgColor: 'primary',
-    to: "/ui/tables",
-  },
-
-  { header: 'Auth' },
-  {
-    title: 'Login',
-    icon: LoginIcon,
-    BgColor: 'primary',
-    to: '/auth/login'
-},
-{
-    title: 'Register',
-    icon: UserPlusIcon,
-    BgColor: 'primary',
-    to: '/auth/register'
-},
-{ header: 'Extra' },
-{
-    title: 'Icons',
+    title: 'Familles Bénéficiaires',
     icon: MoodHappyIcon,
     BgColor: 'primary',
-    to: '/icons'
-},
-{
-    title: 'Sample Page',
+    to: '/beneficiaries'
+  },
+  {
+    title: 'Visites',
+    icon: CircleDotIcon,
+    BgColor: 'primary',
+    to: '/visits'
+  },
+  {
+    title: 'Aides',
+    icon: BoxMultiple1Icon,
+    BgColor: 'primary',
+    to: '/aides'
+  },
+  {
+    title: 'Localisation',
+    icon: AlertCircleIcon,
+    BgColor: 'primary',
+    to: '/localisation'
+  },
+  {
+    title: 'Historique',
+    icon: BorderAllIcon,
+    BgColor: 'primary',
+    to: '/history'
+  },
+  { header: 'Administration' },
+  {
+    title: 'Utilisateurs',
+    icon: UserPlusIcon,
+    BgColor: 'primary',
+    to: '/users'
+  },
+  {
+    title: 'Rôles & Accès',
     icon: ApertureIcon,
     BgColor: 'primary',
-    to: '/sample-page'
-},
-
+    to: '/roles'
+  },
+  {
+    title: 'Bénévoles',
+    icon: UserPlusIcon,
+    BgColor: 'primary',
+    to: '/benevoles'
+  },
+  { header: 'Rapports' },
+  {
+    title: 'Cartographie',
+    icon: BorderAllIcon,
+    BgColor: 'primary',
+    to: '/cartography'
+  },
+  {
+    title: 'Planification',
+    icon: BorderAllIcon,
+    BgColor: 'primary',
+    to: '/planning'
+  },
+  {
+    title: 'Stats & Rapports',
+    icon: LayoutDashboardIcon,
+    BgColor: 'primary',
+    to: '/reports'
+  },
 ];
+
 
 export default sidebarItem;
