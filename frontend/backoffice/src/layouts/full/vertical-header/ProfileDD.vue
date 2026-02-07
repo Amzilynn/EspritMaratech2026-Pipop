@@ -23,7 +23,7 @@ const authStore = useAuthStore();
                     <template v-slot:prepend>
                         <UserIcon stroke-width="1.5" size="20"/>
                     </template>
-                    <v-list-item-title class="pl-4 text-body-1">{{ authStore.user || 'My Profile' }}</v-list-item-title>
+                    <v-list-item-title class="pl-4 text-body-1">{{ authStore.email || 'Mon Profil' }}</v-list-item-title>
                 </v-list-item>
             </v-list>
             <div class="pt-4 pb-4 px-5 text-center">

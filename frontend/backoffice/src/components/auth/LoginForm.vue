@@ -28,7 +28,7 @@ function handleLogin() {
                 <v-label class="font-weight-medium mb-1">Role (Demo)</v-label>
                 <v-select
                     v-model="selectedRole"
-                    :items="['admin', 'responsable', 'benevole']"
+                    :items="['admin', 'responsable', 'benevole', 'user']"
                     variant="outlined"
                     hide-details
                     color="primary"

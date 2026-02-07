@@ -39,7 +39,7 @@ const dashboardCards = computed(() => {
     <div>
         <v-row class="mb-4">
             <v-col cols="12">
-                <h1 class="text-h2 mb-2">Bienvenue, {{ authStore.user }}</h1>
+                <h1 class="text-h2 mb-2">Bienvenue, {{ authStore.email }}</h1>
                 <v-chip color="primary" class="font-weight-bold text-uppercase">{{ authStore.role }}</v-chip>
             </v-col>
         </v-row>

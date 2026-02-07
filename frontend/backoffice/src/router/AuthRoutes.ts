@@ -10,6 +10,11 @@ const AuthRoutes = {
             name: 'Login',
             path: '/auth/login',
             component: () => import('@/views/authentication/BoxedLogin.vue')
+        },
+        {
+            name: 'Register',
+            path: '/auth/register',
+            component: () => import('@/views/authentication/BoxedRegister.vue')
         }
     ]
 };
