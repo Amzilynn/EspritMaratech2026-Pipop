@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { UserIcon, MailIcon, ListCheckIcon } from 'vue-tabler-icons';
+import { useAuthStore } from '@/stores/auth';
+
+const authStore = useAuthStore();
 </script>
 
 <template>
@@ -20,23 +23,11 @@ import { UserIcon, MailIcon, ListCheckIcon } from 'vue-tabler-icons';
                     <template v-slot:prepend>
                         <UserIcon stroke-width="1.5" size="20"/>
                     </template>
-                    <v-list-item-title class="pl-4 text-body-1">My Profile</v-list-item-title>
-                </v-list-item>
-                <v-list-item value="item2" color="primary">
-                    <template v-slot:prepend>
-                        <MailIcon stroke-width="1.5" size="20"/>
-                    </template>
-                    <v-list-item-title  class="pl-4 text-body-1">My Account</v-list-item-title>
-                </v-list-item>
-                <v-list-item value="item3" color="primary"> 
-                    <template v-slot:prepend>
-                        <ListCheckIcon stroke-width="1.5"  size="20"/>
-                    </template>
-                    <v-list-item-title class="pl-4 text-body-1">My Task</v-list-item-title>
+                    <v-list-item-title class="pl-4 text-body-1">{{ authStore.email || 'Mon Profil' }}</v-list-item-title>
                 </v-list-item>
             </v-list>
             <div class="pt-4 pb-4 px-5 text-center">
-                <v-btn to="" color="primary" variant="outlined" class="rounded-pill" block>Logout</v-btn>
+                <v-btn @click="authStore.logout()" color="primary" variant="outlined" class="rounded-pill" block>Logout</v-btn>
             </div>
         </v-sheet>
     </v-menu>

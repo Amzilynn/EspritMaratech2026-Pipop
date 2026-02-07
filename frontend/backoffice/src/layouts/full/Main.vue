@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, shallowRef } from 'vue';
+import { ref, shallowRef, computed } from 'vue';
 import sidebarItems from './vertical-sidebar/sidebarItem';
 import NavGroup from './vertical-sidebar/NavGroup/index.vue';
 import NavItem from './vertical-sidebar/NavItem/index.vue';
@@ -8,9 +8,18 @@ import Logo from './logo/Logo.vue';
 import { Menu2Icon, BellRingingIcon } from 'vue-tabler-icons';
 import NotificationDD from './vertical-header/NotificationDD.vue';
 import ProfileDD from './vertical-header/ProfileDD.vue';
-const sidebarMenu = shallowRef(sidebarItems);
+import { useAuthStore } from '@/stores/auth';
+
+const authStore = useAuthStore();
 const sDrawer = ref(true);
 
+const sidebarMenu = computed(() => {
+    return sidebarItems.filter(item => {
+        if (!item.roles) return true;
+        if (!authStore.role) return false;
+        return item.roles.includes(authStore.role);
+    });
+});
 </script>
 
 <template>
@@ -35,9 +44,7 @@ const sDrawer = ref(true);
                 <!-- <Moreoption/> -->
             </v-list>
             <div class="py-0 px-6">
-                <v-btn class="mr-2 bg-primary rounded-pill" size="large"
-                    href="https://www.wrappixel.com/templates/spike-vuejs-admin-dashboard/?ref=33" block target="_blank">Upgrade to
-                    Pro</v-btn>
+                <!-- Upgrade button removed -->
             </div>
         </perfect-scrollbar>
     </v-navigation-drawer>
@@ -54,10 +61,8 @@ const sDrawer = ref(true);
                         <NotificationDD />
                     </div>
                     <div>
-                        <!-- Upgrade button -->
-                        <v-btn class="mr-2 bg-primary rounded-pill"
-                            href="https://www.wrappixel.com/templates/spike-vuejs-admin-dashboard/?ref=33"
-                            target="_blank">Upgrade to Pro</v-btn>
+                        <!-- Upgrade button removed -->
+                        
                         <!-- User Profile -->
                         <ProfileDD />
                     </div>

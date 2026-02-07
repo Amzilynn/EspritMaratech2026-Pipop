@@ -1,0 +1,231 @@
+<template>
+  <section class="beneficiaries-page">
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">Bénéficiaires</p>
+        <h2>Gestion des Familles Bénéficiaires</h2>
+        <p class="subtle">Suivi, édition et suppression des familles.</p>
+      </div>
+      <router-link v-if="canCreate" to="/beneficiaries/new" class="btn btn-primary">Ajouter une famille</router-link>
+    </header>
+
+    <div class="table-card">
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Nom de la famille</th>
+              <th>Adresse</th>
+              <th>Membres</th>
+              <th>Statut Social</th>
+              <th>Téléphone</th>
+              <th>CIN du représentant</th>
+              <th class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="family in families" :key="family.id">
+              <td>{{ family.name }}</td>
+              <td>{{ family.address }}</td>
+              <td>{{ family.members }}</td>
+              <td>{{ family.socialStatus }}</td>
+              <td>{{ family.phone }}</td>
+              <td>{{ family.cin }}</td>
+              <td>
+                <div class="actions">
+                  <router-link v-if="canEdit" :to="`/beneficiaries/edit/${family.id}`" class="btn btn-sm btn-warning">Modifier</router-link>
+                  <button v-if="canDelete" @click="deleteFamily(family.id)" class="btn btn-sm btn-danger">
+                    Supprimer
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import { beneficiaries } from '@/data/beneficiaries';
+import type { Beneficiary } from '@/types/beneficiary';
+import { useAuthStore } from '@/stores/auth';
+
+const authStore = useAuthStore();
+const role = computed(() => authStore.role);
+
+const canCreate = computed(() => ['benevole'].includes(role.value || ''));
+const canEdit = computed(() => ['benevole'].includes(role.value || ''));
+const canDelete = computed(() => ['admin'].includes(role.value || ''));
+
+const families = ref<Beneficiary[]>(beneficiaries);
+
+const deleteFamily = (id: number) => {
+  if (confirm('Êtes-vous sûr de vouloir supprimer cette famille ?')) {
+    const index = families.value.findIndex(f => f.id === id);
+    if (index !== -1) {
+      families.value.splice(index, 1);
+    }
+  }
+};
+</script>
+
+<style scoped>
+.beneficiaries-page {
+  --ink: #0f172a;
+  --muted: #6b7280;
+  --brand: #0f766e;
+  --brand-contrast: #ffffff;
+  background: linear-gradient(180deg, #f7f8fb 0%, #eef2f7 100%);
+  min-height: 100%;
+  padding: 28px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+
+h2 {
+  margin: 0;
+  font-size: 26px;
+  color: var(--ink);
+}
+
+.subtle {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.table-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 980px;
+}
+
+.table th {
+  text-align: left;
+  padding: 14px 16px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #475569;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #edf2f7;
+  color: var(--ink);
+}
+
+.table tbody tr:hover {
+  background: #f5f7fb;
+}
+
+.col-actions {
+  width: 220px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.status-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-chip.is-archived {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.btn {
+  border: 1px solid transparent;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: var(--brand);
+  color: var(--brand-contrast);
+  box-shadow: 0 6px 16px rgba(15, 118, 110, 0.18);
+}
+
+.btn-warning {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.btn-danger {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.btn-sm {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.btn:hover {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 900px) {
+  .beneficiaries-page {
+    padding: 20px;
+  }
+
+  .table {
+    min-width: 760px;
+  }
+}
+</style>

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 
-const router = useRouter();
+const router = useRouter()
 
 const form = ref({
     firstName: '',
@@ -11,40 +11,45 @@ const form = ref({
     phone: '',
     password: '',
     confirmPassword: '',
-});
+})
 
-const errorMsg = ref('');
-const successMsg = ref('');
-const isLoading = ref(false);
+const errorMsg = ref('')
+const successMsg = ref('')
+const isLoading = ref(false)
 
 async function handleRegister() {
-    errorMsg.value = '';
-    successMsg.value = '';
+    errorMsg.value = ''
+    successMsg.value = ''
 
+    // Validation
     if (!form.value.firstName || !form.value.lastName || !form.value.email || !form.value.password) {
-        errorMsg.value = 'Veuillez remplir tous les champs obligatoires.';
-        return;
+        errorMsg.value = 'Veuillez remplir tous les champs obligatoires.'
+        return
     }
 
     if (form.value.password.length < 6) {
-        errorMsg.value = 'Le mot de passe doit contenir au moins 6 caractères.';
-        return;
+        errorMsg.value = 'Le mot de passe doit contenir au moins 6 caractères.'
+        return
     }
 
     if (form.value.password !== form.value.confirmPassword) {
-        errorMsg.value = 'Les mots de passe ne correspondent pas.';
-        return;
+        errorMsg.value = 'Les mots de passe ne correspondent pas.'
+        return
     }
 
-    isLoading.value = true;
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    isLoading.value = true
 
-    const existingUsers = JSON.parse(localStorage.getItem('fo_registered_users') || '[]');
+    // Simulate API call to register user in database
+    await new Promise(resolve => setTimeout(resolve, 1000))
 
+    // Save to localStorage as demo (in production, this goes to the backend DB)
+    const existingUsers = JSON.parse(localStorage.getItem('fo_registered_users') || '[]')
+    
+    // Check if email already exists
     if (existingUsers.find((u: any) => u.email === form.value.email)) {
-        errorMsg.value = 'Cet email est déjà utilisé.';
-        isLoading.value = false;
-        return;
+        errorMsg.value = 'Cet email est déjà utilisé.'
+        isLoading.value = false
+        return
     }
 
     const newUser = {
@@ -53,21 +58,21 @@ async function handleRegister() {
         lastName: form.value.lastName,
         email: form.value.email,
         phone: form.value.phone,
-        password: form.value.password,
-        role: 'user',
+        password: form.value.password, // In production: hashed!
+        role: 'user', // Default role for front-office registrations
         status: 'Active',
         createdAt: new Date().toISOString()
-    };
+    }
 
-    existingUsers.push(newUser);
-    localStorage.setItem('fo_registered_users', JSON.stringify(existingUsers));
+    existingUsers.push(newUser)
+    localStorage.setItem('fo_registered_users', JSON.stringify(existingUsers))
 
-    isLoading.value = false;
-    successMsg.value = 'Compte créé avec succès ! Redirection vers la connexion...';
+    isLoading.value = false
+    successMsg.value = 'Compte créé avec succès ! Redirection vers la connexion...'
 
     setTimeout(() => {
-        router.push('/auth/login');
-    }, 2000);
+        router.push('/login')
+    }, 2000)
 }
 </script>
 
@@ -76,7 +81,7 @@ async function handleRegister() {
         <div class="auth-container">
             <div class="auth-card">
                 <div class="auth-header">
-                    <h1 class="auth-logo">Omnia</h1>
+                    <router-link to="/" class="auth-logo">Omnia</router-link>
                     <h2>Créer un Compte</h2>
                     <p>Rejoignez notre communauté et participez à nos actions</p>
                 </div>
@@ -93,38 +98,74 @@ async function handleRegister() {
                     <div class="form-row">
                         <div class="form-group half">
                             <label for="firstName"><i class="fa fa-user"></i> Prénom *</label>
-                            <input id="firstName" v-model="form.firstName" type="text" placeholder="Votre prénom" required />
+                            <input
+                                id="firstName"
+                                v-model="form.firstName"
+                                type="text"
+                                placeholder="Votre prénom"
+                                required
+                            />
                         </div>
                         <div class="form-group half">
                             <label for="lastName">Nom *</label>
-                            <input id="lastName" v-model="form.lastName" type="text" placeholder="Votre nom" required />
+                            <input
+                                id="lastName"
+                                v-model="form.lastName"
+                                type="text"
+                                placeholder="Votre nom"
+                                required
+                            />
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label for="email"><i class="fa fa-envelope"></i> Adresse Email *</label>
-                        <input id="email" v-model="form.email" type="email" placeholder="votre@email.com" required />
+                        <input
+                            id="email"
+                            v-model="form.email"
+                            type="email"
+                            placeholder="votre@email.com"
+                            required
+                        />
                     </div>
 
                     <div class="form-group">
                         <label for="phone"><i class="fa fa-phone"></i> Téléphone</label>
-                        <input id="phone" v-model="form.phone" type="tel" placeholder="+216 XX XXX XXX" />
+                        <input
+                            id="phone"
+                            v-model="form.phone"
+                            type="tel"
+                            placeholder="+216 XX XXX XXX"
+                        />
                     </div>
 
                     <div class="form-row">
                         <div class="form-group half">
                             <label for="password"><i class="fa fa-lock"></i> Mot de Passe *</label>
-                            <input id="password" v-model="form.password" type="password" placeholder="Min. 6 caractères" required />
+                            <input
+                                id="password"
+                                v-model="form.password"
+                                type="password"
+                                placeholder="Min. 6 caractères"
+                                required
+                            />
                         </div>
                         <div class="form-group half">
                             <label for="confirmPassword">Confirmer *</label>
-                            <input id="confirmPassword" v-model="form.confirmPassword" type="password" placeholder="Confirmer" required />
+                            <input
+                                id="confirmPassword"
+                                v-model="form.confirmPassword"
+                                type="password"
+                                placeholder="Confirmer"
+                                required
+                            />
                         </div>
                     </div>
 
                     <div class="role-info">
                         <i class="fa fa-info-circle"></i>
                         Votre compte sera créé avec le rôle <strong>Utilisateur</strong>.
+                        Vous pourrez suivre nos actions et participer en tant que bénévole.
                     </div>
 
                     <div class="form-terms">
@@ -135,13 +176,13 @@ async function handleRegister() {
                     </div>
 
                     <button type="submit" class="auth-btn" :disabled="isLoading">
-                        <span v-if="isLoading">Création en cours...</span>
+                        <span v-if="isLoading"><i class="fa fa-spinner fa-spin"></i> Création en cours...</span>
                         <span v-else>Créer mon Compte</span>
                     </button>
                 </form>
 
                 <div class="auth-footer">
-                    <p>Déjà un compte ? <router-link to="/auth/login">Se Connecter</router-link></p>
+                    <p>Déjà un compte ? <router-link to="/login">Se Connecter</router-link></p>
                 </div>
             </div>
         </div>
@@ -156,7 +197,6 @@ async function handleRegister() {
     align-items: center;
     justify-content: center;
     padding: 20px;
-    font-family: 'Roboto', 'Inter', sans-serif;
 }
 
 .auth-container {
@@ -180,8 +220,9 @@ async function handleRegister() {
     font-size: 36px;
     font-weight: 700;
     color: #2B7EC1;
+    text-decoration: none;
+    display: inline-block;
     margin-bottom: 12px;
-    font-family: 'Georgia', serif;
 }
 
 .auth-header h2 {
@@ -194,7 +235,6 @@ async function handleRegister() {
 .auth-header p {
     color: #636E72;
     font-size: 13px;
-    margin: 0;
 }
 
 .auth-error {

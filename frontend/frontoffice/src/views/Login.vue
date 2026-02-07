@@ -1,49 +1,59 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useAuthStore } from '@/stores/auth';
-import type { UserRole } from '@/stores/auth';
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 
-const authStore = useAuthStore();
-const email = ref('');
-const password = ref('');
-const selectedRole = ref<UserRole>('user');
-const errorMsg = ref('');
-const isLoading = ref(false);
+const router = useRouter()
+
+const email = ref('')
+const password = ref('')
+const selectedRole = ref('user')
+const errorMsg = ref('')
+const isLoading = ref(false)
 
 const roles = [
     { value: 'user', label: 'Utilisateur' },
     { value: 'benevole', label: 'Bénévole' },
     { value: 'responsable', label: 'Responsable' },
     { value: 'admin', label: 'Administrateur' },
-];
+]
 
 async function handleLogin() {
-    errorMsg.value = '';
+    errorMsg.value = ''
 
     if (!email.value || !password.value) {
-        errorMsg.value = 'Veuillez remplir tous les champs.';
-        return;
+        errorMsg.value = 'Veuillez remplir tous les champs.'
+        return
     }
 
-    isLoading.value = true;
-    await new Promise(resolve => setTimeout(resolve, 800));
-    isLoading.value = false;
+    isLoading.value = true
 
-    if (selectedRole.value === 'user') {
-        // User role → redirect to frontoffice
-        // Set frontoffice user data
-        localStorage.setItem('fo_user', JSON.stringify({
-            email: email.value,
-            role: 'user',
-            name: email.value.split('@')[0]
-        }));
-        // DON'T clear localStorage yet - just redirect
-        // The frontoffice will handle its own session
-        console.log('Redirecting to frontoffice at http://localhost:5173/');
-        window.location.href = 'http://localhost:5173/';
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 800))
+
+    // Demo login - store in localStorage
+    localStorage.setItem('fo_user', JSON.stringify({
+        email: email.value,
+        role: selectedRole.value,
+        name: email.value.split('@')[0]
+    }))
+
+    isLoading.value = false
+
+    // Redirect based on role
+    // Admin, Responsable, Bénévole → Backoffice (admin panel)
+    // User → Frontoffice (page d'accueil)
+    const backofficeRoles = ['admin', 'responsable', 'benevole']
+
+    if (backofficeRoles.includes(selectedRole.value)) {
+        // Store in backoffice auth format for seamless session
+        localStorage.setItem('user_email', email.value)
+        localStorage.setItem('user', email.value)
+        localStorage.setItem('role', selectedRole.value)
+        // Redirect to backoffice admin panel
+        window.location.replace('http://localhost:5174/')
+        return
     } else {
-        // Admin, Responsable, Bénévole → stay in backoffice
-        authStore.login(email.value, selectedRole.value);
+        router.push('/')
     }
 }
 </script>
@@ -53,7 +63,7 @@ async function handleLogin() {
         <div class="auth-container">
             <div class="auth-card">
                 <div class="auth-header">
-                    <h1 class="auth-logo">Omnia</h1>
+                    <router-link to="/" class="auth-logo">Omnia</router-link>
                     <h2>Connexion</h2>
                     <p>Connectez-vous pour accéder à votre espace</p>
                 </div>
@@ -100,13 +110,13 @@ async function handleLogin() {
                     </div>
 
                     <button type="submit" class="auth-btn" :disabled="isLoading">
-                        <span v-if="isLoading">Connexion...</span>
+                        <span v-if="isLoading"><i class="fa fa-spinner fa-spin"></i> Connexion...</span>
                         <span v-else>Se Connecter</span>
                     </button>
                 </form>
 
                 <div class="auth-footer">
-                    <p>Pas encore de compte ? <router-link to="/auth/register">S'inscrire</router-link></p>
+                    <p>Pas encore de compte ? <router-link to="/register">S'inscrire</router-link></p>
                 </div>
             </div>
         </div>
@@ -121,7 +131,6 @@ async function handleLogin() {
     align-items: center;
     justify-content: center;
     padding: 20px;
-    font-family: 'Roboto', 'Inter', sans-serif;
 }
 
 .auth-container {
@@ -145,8 +154,9 @@ async function handleLogin() {
     font-size: 36px;
     font-weight: 700;
     color: #2B7EC1;
+    text-decoration: none;
+    display: inline-block;
     margin-bottom: 16px;
-    font-family: 'Georgia', serif;
 }
 
 .auth-header h2 {
@@ -159,7 +169,6 @@ async function handleLogin() {
 .auth-header p {
     color: #636E72;
     font-size: 14px;
-    margin: 0;
 }
 
 .auth-error {
