@@ -91,6 +91,7 @@ if ($newBene) {
         Test-Endpoint -Method Patch -Uri "/visits/$visitId" -Body @{ notes = "Corrected notes." } -Headers $adminHeaders
         Test-Endpoint -Method Patch -Uri "/visits/aids/$aidId" -Body @{ quantite = 99 } -Headers $adminHeaders
 
+
         Write-Host "`n--- PHASE 5: Deletion & Cleanup ---" -ForegroundColor Cyan
         # Negative test: Volunteer should NOT be able to delete beneficiaries
         Write-Host "Verification: Volunteer should NOT be able to delete beneficiary (Expecting 403)"

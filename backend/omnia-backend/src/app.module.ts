@@ -8,6 +8,7 @@ import { BeneficiairesModule } from './beneficiaires/beneficiaires.module';
 import { VisitsModule } from './visits/visits.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { OcrModule } from './ocr/ocr.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { AuthModule } from './auth/auth.module';
     VisitsModule,
     AuditModule,
     AuthModule,
+    OcrModule,
   ],
   controllers: [AppController],
   providers: [AppService],
