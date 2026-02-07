@@ -24,84 +24,90 @@ export interface menu {
   disabled?: boolean;
   type?: string;
   subCaption?: string;
+  roles?: string[]; // Add roles property
 }
 
 const sidebarItem: menu[] = [
-  { header: 'Tableau de bord' },
+  { header: 'Tableau de bord', roles: ['admin'] },
   {
     title: 'Dashboard',
     icon: LayoutDashboardIcon,
     BgColor: 'primary',
-    to: '/'
+    to: '/',
+    roles: ['admin']
   },
   { header: 'Gestion' },
   {
     title: 'Familles Bénéficiaires',
     icon: MoodHappyIcon,
     BgColor: 'primary',
-    to: '/beneficiaries'
+    to: '/beneficiaries',
+    roles: ['admin', 'responsable', 'benevole']
   },
   {
     title: 'Visites',
     icon: CircleDotIcon,
     BgColor: 'primary',
-    to: '/visits'
+    to: '/visits',
+    roles: ['admin', 'responsable', 'benevole']
   },
   {
     title: 'Aides',
     icon: BoxMultiple1Icon,
     BgColor: 'primary',
-    to: '/aides'
+    to: '/aides',
+    roles: ['admin', 'responsable', 'benevole']
   },
   {
     title: 'Localisation',
     icon: AlertCircleIcon,
     BgColor: 'primary',
-    to: '/localisation'
+    to: '/localisation',
+    roles: ['benevole']
   },
   {
     title: 'Historique',
     icon: BorderAllIcon,
     BgColor: 'primary',
-    to: '/history'
+    to: '/history',
+    roles: ['responsable', 'benevole']
   },
-  { header: 'Administration' },
+  { header: 'Administration', roles: ['admin', 'responsable'] },
   {
     title: 'Utilisateurs',
     icon: UserPlusIcon,
     BgColor: 'primary',
-    to: '/users'
+    to: '/users',
+    roles: ['admin']
   },
   {
     title: 'Rôles & Accès',
     icon: ApertureIcon,
     BgColor: 'primary',
-    to: '/roles'
+    to: '/roles',
+    roles: ['admin']
   },
   {
     title: 'Bénévoles',
     icon: UserPlusIcon,
     BgColor: 'primary',
-    to: '/benevoles'
+    to: '/benevoles',
+    roles: ['responsable']
   },
-  { header: 'Rapports' },
+  { header: 'Rapports', roles: ['responsable'] },
   {
     title: 'Cartographie',
     icon: BorderAllIcon,
     BgColor: 'primary',
-    to: '/cartography'
+    to: '/cartography',
+    roles: ['responsable']
   },
   {
     title: 'Planification',
     icon: BorderAllIcon,
     BgColor: 'primary',
-    to: '/planning'
-  },
-  {
-    title: 'Stats & Rapports',
-    icon: LayoutDashboardIcon,
-    BgColor: 'primary',
-    to: '/reports'
+    to: '/planning',
+    roles: ['responsable']
   },
 ];
 

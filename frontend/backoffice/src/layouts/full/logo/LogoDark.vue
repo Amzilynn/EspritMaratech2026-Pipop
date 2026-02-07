@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
-import logo from '@/assets/images/logos/logo-dark.svg';
 </script>
 <template>
     <div class="logo">
-        <RouterLink to="/">
-            <img :src="logo" alt="home" />
+        <RouterLink to="/" class="d-flex align-center text-decoration-none">
+            <h2 class="text-h3 font-weight-bold ml-3 text-primary">Omnia</h2>
         </RouterLink>
     </div>
 </template>

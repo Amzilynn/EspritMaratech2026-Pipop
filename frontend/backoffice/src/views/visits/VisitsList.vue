@@ -6,7 +6,7 @@
         <h2>Gestion des Visites</h2>
         <p class="subtle">Historique des visites effectuées.</p>
       </div>
-      <router-link to="/visits/new" class="btn btn-primary">Nouvelle visite</router-link>
+      <router-link v-if="canCreate" to="/visits/new" class="btn btn-primary">Nouvelle visite</router-link>
     </header>
 
     <div class="table-card">
@@ -29,8 +29,8 @@
               <td>{{ visit.notes }}</td>
               <td>
                 <div class="actions">
-                  <router-link :to="`/visits/edit/${visit.id}`" class="btn btn-sm btn-warning">Modifier</router-link>
-                  <button @click="deleteVisit(visit.id)" class="btn btn-sm btn-danger">Supprimer</button>
+                  <router-link v-if="canEdit" :to="`/visits/edit/${visit.id}`" class="btn btn-sm btn-warning">Modifier</router-link>
+                  <button v-if="canDelete" @click="deleteVisit(visit.id)" class="btn btn-sm btn-danger">Supprimer</button>
                 </div>
               </td>
             </tr>
@@ -42,9 +42,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { visits } from '@/data/visits';
 import type { Visit } from '@/types/visit';
+import { useAuthStore } from '@/stores/auth';
+
+const authStore = useAuthStore();
+const role = computed(() => authStore.role);
+
+const canCreate = computed(() => ['benevole'].includes(role.value || ''));
+const canEdit = computed(() => ['responsable', 'benevole'].includes(role.value || ''));
+const canDelete = computed(() => ['admin'].includes(role.value || ''));
 
 const visitList = ref<Visit[]>(visits);
 

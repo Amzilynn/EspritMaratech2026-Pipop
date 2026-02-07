@@ -6,7 +6,7 @@
         <h2>Gestion des Familles Bénéficiaires</h2>
         <p class="subtle">Suivi, édition et suppression des familles.</p>
       </div>
-      <router-link to="/beneficiaries/new" class="btn btn-primary">Ajouter une famille</router-link>
+      <router-link v-if="canCreate" to="/beneficiaries/new" class="btn btn-primary">Ajouter une famille</router-link>
     </header>
 
     <div class="table-card">
@@ -33,8 +33,8 @@
               <td>{{ family.cin }}</td>
               <td>
                 <div class="actions">
-                  <router-link :to="`/beneficiaries/edit/${family.id}`" class="btn btn-sm btn-warning">Modifier</router-link>
-                  <button @click="deleteFamily(family.id)" class="btn btn-sm btn-danger">
+                  <router-link v-if="canEdit" :to="`/beneficiaries/edit/${family.id}`" class="btn btn-sm btn-warning">Modifier</router-link>
+                  <button v-if="canDelete" @click="deleteFamily(family.id)" class="btn btn-sm btn-danger">
                     Supprimer
                   </button>
                 </div>
@@ -48,9 +48,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { beneficiaries } from '@/data/beneficiaries';
 import type { Beneficiary } from '@/types/beneficiary';
+import { useAuthStore } from '@/stores/auth';
+
+const authStore = useAuthStore();
+const role = computed(() => authStore.role);
+
+const canCreate = computed(() => ['benevole'].includes(role.value || ''));
+const canEdit = computed(() => ['benevole'].includes(role.value || ''));
+const canDelete = computed(() => ['admin'].includes(role.value || ''));
 
 const families = ref<Beneficiary[]>(beneficiaries);
 
