@@ -28,13 +28,13 @@ export interface menu {
 }
 
 const sidebarItem: menu[] = [
-  { header: 'Tableau de bord', roles: ['admin'] },
+  { header: 'Tableau de bord', roles: ['ADMIN'] },
   {
     title: 'Dashboard',
     icon: LayoutDashboardIcon,
     BgColor: 'primary',
     to: '/',
-    roles: ['admin']
+    roles: ['ADMIN']
   },
   { header: 'Gestion' },
   {
@@ -42,72 +42,65 @@ const sidebarItem: menu[] = [
     icon: MoodHappyIcon,
     BgColor: 'primary',
     to: '/beneficiaries',
-    roles: ['admin', 'responsable', 'benevole']
+    roles: ['ADMIN', 'RESPONSABLE_TERRAIN', 'BENEVOLE']
   },
   {
     title: 'Visites',
     icon: CircleDotIcon,
     BgColor: 'primary',
     to: '/visits',
-    roles: ['admin', 'responsable', 'benevole']
+    roles: ['ADMIN', 'RESPONSABLE_TERRAIN', 'BENEVOLE']
   },
   {
     title: 'Aides',
     icon: BoxMultiple1Icon,
     BgColor: 'primary',
     to: '/aides',
-    roles: ['admin', 'responsable', 'benevole']
+    roles: ['ADMIN', 'RESPONSABLE_TERRAIN', 'BENEVOLE']
   },
   {
     title: 'Localisation',
     icon: AlertCircleIcon,
     BgColor: 'primary',
     to: '/localisation',
-    roles: ['benevole']
+    roles: ['BENEVOLE']
   },
   {
     title: 'Historique',
     icon: BorderAllIcon,
     BgColor: 'primary',
     to: '/history',
-    roles: ['responsable', 'benevole']
+    roles: ['RESPONSABLE_TERRAIN', 'BENEVOLE']
   },
-  { header: 'Administration', roles: ['admin', 'responsable'] },
-  {
-    title: 'Utilisateurs',
-    icon: UserPlusIcon,
-    BgColor: 'primary',
-    to: '/users',
-    roles: ['admin']
-  },
-  {
-    title: 'Rôles & Accès',
-    icon: ApertureIcon,
-    BgColor: 'primary',
-    to: '/roles',
-    roles: ['admin']
-  },
+  { header: 'Administration', roles: ['ADMIN', 'RESPONSABLE_TERRAIN'] },
   {
     title: 'Bénévoles',
-    icon: UserPlusIcon,
+    icon: 'mdi-account-heart',
     BgColor: 'primary',
     to: '/benevoles',
-    roles: ['responsable']
+    roles: ['ADMIN', 'RESPONSABLE_TERRAIN']
   },
-  { header: 'Rapports', roles: ['responsable'] },
+  {
+    title: 'Responsables',
+    icon: 'mdi-account-tie',
+    BgColor: 'primary',
+    to: '/responsables',
+    roles: ['ADMIN']
+  },
+  { header: 'Rapports', roles: ['RESPONSABLE_TERRAIN'] },
   {
     title: 'Cartographie',
     icon: BorderAllIcon,
     BgColor: 'primary',
     to: '/cartography',
-    roles: ['responsable']
+    roles: ['RESPONSABLE_TERRAIN']
   },
   {
     title: 'Planification',
     icon: BorderAllIcon,
     BgColor: 'primary',
     to: '/planning',
-    roles: ['responsable']
+    roles: ['RESPONSABLE_TERRAIN']
   },
 ];
 

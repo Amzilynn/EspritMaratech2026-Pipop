@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { apiFetch } from '@/services/api'
 
 const router = useRouter()
 
@@ -27,33 +28,37 @@ async function handleLogin() {
 
     isLoading.value = true
 
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 800))
+    try {
+        const response = await apiFetch('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({
+                email: email.value,
+                password: password.value
+            })
+        });
 
-    // Demo login - store in localStorage
-    localStorage.setItem('fo_user', JSON.stringify({
-        email: email.value,
-        role: selectedRole.value,
-        name: email.value.split('@')[0]
-    }))
+        isLoading.value = false
 
-    isLoading.value = false
+        // Store real user data and token
+        localStorage.setItem('fo_user', JSON.stringify(response.user))
+        localStorage.setItem('access_token', response.access_token)
+        
+        // Sync with backoffice keys for shared session
+        localStorage.setItem('user_email', response.user.email)
+        localStorage.setItem('role', response.user.role.toLowerCase())
 
-    // Redirect based on role
-    // Admin, Responsable, Bénévole → Backoffice (admin panel)
-    // User → Frontoffice (page d'accueil)
-    const backofficeRoles = ['admin', 'responsable', 'benevole']
+        const backendRole = response.user.role.toLowerCase();
+        const backofficeRoles = ['admin', 'responsable_terrain', 'benevole', 'responsable']
 
-    if (backofficeRoles.includes(selectedRole.value)) {
-        // Store in backoffice auth format for seamless session
-        localStorage.setItem('user_email', email.value)
-        localStorage.setItem('user', email.value)
-        localStorage.setItem('role', selectedRole.value)
-        // Redirect to backoffice admin panel
-        window.location.replace('http://localhost:5174/')
-        return
-    } else {
-        router.push('/')
+        if (backofficeRoles.includes(backendRole)) {
+            // Redirect to backoffice admin panel
+            window.location.href = 'http://localhost:5173/spike-vue-free/'
+        } else {
+            router.push('/')
+        }
+    } catch (err: any) {
+        isLoading.value = false
+        errorMsg.value = err.message || 'Identifiants invalides.'
     }
 }
 </script>

@@ -1,0 +1,38 @@
+﻿[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +123ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPassportModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mHttpModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mHttpModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +3ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmCoreModule dependencies initialized[39m[38;5;3m +418ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mIntelligenceModule dependencies initialized[39m[38;5;3m +4ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mUsersModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mBeneficiairesModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mVisitsModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuditModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mResourcesModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 7608  - [39m07/02/2026 21:03:21 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mOcrModule dependencies initialized[39m[38;5;3m +0ms[39m
+--- USERS IN DATABASE ---
+ID: 0e71e1df-1604-44a1-9fe2-5143535826fa, Email: admin.tunis@omnia.tn, Name: Hichem Ben Ahmed, Role: ADMIN
+ID: a804710a-e1a5-4975-a843-92cc732288b7, Email: coordinator.tunis@omnia.tn, Name: Fatima Zahra, Role: RESPONSABLE_TERRAIN
+ID: 9a4a8add-7013-42bf-831d-07ad720d3ba1, Email: field1.tunis@omnia.tn, Name: Youssef Oueslati, Role: BENEVOLE
+ID: 1db5d0a2-3655-49bd-b2b8-957d45adb812, Email: field2.tunis@omnia.tn, Name: Aisha Karray, Role: BENEVOLE
+ID: e2b3bffa-0664-4d42-bc89-90a48a5392ca, Email: field3.tunis@omnia.tn, Name: Mohamed Tarhouni, Role: BENEVOLE
+ID: 722e427a-b2b1-47cf-a0c7-92008aac1e4f, Email: financial@omnia.tn, Name: Leila Hadj Ali, Role: RESPONSABLE_TERRAIN
+ID: e7419746-2496-41bc-8b4e-2601692cb384, Email: logistician@omnia.tn, Name: Karim Jabli, Role: BENEVOLE
+ID: 7800b142-c724-479d-89b7-081cf66edc29, Email: admin@omnia.tn, Name: Mehdi Admin, Role: ADMIN
+ID: 0a904831-7274-403b-b57a-e96fca7d8f5e, Email: manager@omnia.tn, Name: Sonia Manager, Role: RESPONSABLE_TERRAIN
+ID: da05d445-6005-457f-b124-e9ba3d3278e5, Email: volunteer@omnia.tn, Name: Ahmed Benevole, Role: BENEVOLE
+ID: 2691ac04-59c8-4558-a504-695eac04712a, Email: testuser2@example.com, Name: User Test, Role: BENEVOLE

@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 import { Role } from './role.entity';
 import { Visit } from '../../visits/entities/visit.entity';
 
@@ -21,6 +21,13 @@ export class User {
 
     @ManyToOne(() => Role, (role) => role.users)
     role: Role;
+
+    @ManyToOne(() => User, (user) => user.subordinates, { nullable: true })
+    @JoinColumn({ name: 'responsableId' })
+    responsable: User;
+
+    @OneToMany(() => User, (user) => user.responsable)
+    subordinates: User[];
 
     @OneToMany(() => Visit, (visit) => visit.user)
     visits: Visit[];

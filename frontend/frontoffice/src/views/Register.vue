@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { apiFetch } from '@/services/api'
 
 const router = useRouter()
 
@@ -39,40 +40,29 @@ async function handleRegister() {
 
     isLoading.value = true
 
-    // Simulate API call to register user in database
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    try {
+        const response = await apiFetch('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify({
+                email: form.value.email,
+                password: form.value.password,
+                lastName: form.value.lastName,
+                firstName: form.value.firstName,
+                telephone: form.value.phone,
+                roleName: 'CITOYEN' // Default role for public registration
+            })
+        });
 
-    // Save to localStorage as demo (in production, this goes to the backend DB)
-    const existingUsers = JSON.parse(localStorage.getItem('fo_registered_users') || '[]')
-    
-    // Check if email already exists
-    if (existingUsers.find((u: any) => u.email === form.value.email)) {
-        errorMsg.value = 'Cet email est déjà utilisé.'
         isLoading.value = false
-        return
+        successMsg.value = 'Compte créé avec succès ! Redirection vers la connexion...'
+
+        setTimeout(() => {
+            router.push('/login')
+        }, 2000)
+    } catch (err: any) {
+        isLoading.value = false
+        errorMsg.value = err.message || 'Une erreur est survenue lors de la création du compte.'
     }
-
-    const newUser = {
-        id: Date.now(),
-        firstName: form.value.firstName,
-        lastName: form.value.lastName,
-        email: form.value.email,
-        phone: form.value.phone,
-        password: form.value.password, // In production: hashed!
-        role: 'user', // Default role for front-office registrations
-        status: 'Active',
-        createdAt: new Date().toISOString()
-    }
-
-    existingUsers.push(newUser)
-    localStorage.setItem('fo_registered_users', JSON.stringify(existingUsers))
-
-    isLoading.value = false
-    successMsg.value = 'Compte créé avec succès ! Redirection vers la connexion...'
-
-    setTimeout(() => {
-        router.push('/login')
-    }, 2000)
 }
 </script>
 

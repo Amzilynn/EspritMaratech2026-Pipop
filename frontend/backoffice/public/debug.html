@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Omnia Debug Tool</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #2D80D9; }
+        h2 { color: #8B1F2B; margin-top: 0; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button {
+            background: #2D80D9;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #1a5fa8; }
+        button.danger { background: #8B1F2B; }
+        button.danger:hover { background: #6a1721; }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        .card {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Omnia Diagnostic Tool</h1>
+    
+    <div class="section">
+        <h2>📊 Current Status</h2>
+        <div id="currentStatus"></div>
+        <button onclick="checkStatus()">🔄 Refresh Status</button>
+    </div>
+
+    <div class="section">
+        <h2>🗄️ LocalStorage Data</h2>
+        <div id="localStorageData"></div>
+        <button onclick="showLocalStorage()">📋 Show Data</button>
+        <button class="danger" onclick="clearLocalStorage()">🗑️ Clear All</button>
+    </div>
+
+    <div class="section">
+        <h2>🔐 Test Backend Connection</h2>
+        <div id="backendTest"></div>
+        <button onclick="testBackend()">🧪 Test Connection</button>
+        <button onclick="testRoles()">📝 Test Roles Endpoint</button>
+        <button onclick="testUsers()">👥 Test Users Endpoint</button>
+    </div>
+
+    <div class="section">
+        <h2>🚀 Quick Actions</h2>
+        <div class="grid">
+            <div class="card">
+                <h3>Re-Login</h3>
+                <button onclick="goToLogin()">🔑 Go to Login</button>
+            </div>
+            <div class="card">
+                <h3>Seed Roles</h3>
+                <button onclick="seedRoles()">🌱 Seed Database Roles</button>
+            </div>
+            <div class="card">
+                <h3>Test Create User</h3>
+                <button onclick="testCreateUser()">➕ Test User Creation</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📝 Logs</h2>
+        <div id="logs"></div>
+        <button onclick="clearLogs()">🧹 Clear Logs</button>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000';
+        let logs = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            logs.push({ timestamp, message, type });
+            updateLogs();
+        }
+
+        function updateLogs() {
+            const logsDiv = document.getElementById('logs');
+            logsDiv.innerHTML = logs.map(l => 
+                `<div class="status ${l.type}">[${l.timestamp}] ${l.message}</div>`
+            ).reverse().join('');
+        }
+
+        function clearLogs() {
+            logs = [];
+            updateLogs();
+        }
+
+        function showLocalStorage() {
+            const data = {
+                role: localStorage.getItem('role'),
+                user_email: localStorage.getItem('user_email'),
+                access_token: localStorage.getItem('access_token') ? '✅ Present' : '❌ Missing',
+                user: localStorage.getItem('user')
+            };
+            
+            document.getElementById('localStorageData').innerHTML = `
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+            log('LocalStorage data retrieved', 'success');
+        }
+
+        function clearLocalStorage() {
+            if (confirm('Are you sure you want to clear all localStorage data?')) {
+                localStorage.clear();
+                log('LocalStorage cleared', 'warning');
+                showLocalStorage();
+            }
+        }
+
+        async function testBackend() {
+            const testDiv = document.getElementById('backendTest');
+            testDiv.innerHTML = '<div class="status info">Testing backend connection...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/users/seed-roles`);
+                const data = await response.json();
+                testDiv.innerHTML = `<div class="status success">✅ Backend is responding!<pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+                log('Backend connection successful', 'success');
+            } catch (error) {
+                testDiv.innerHTML = `<div class="status error">❌ Backend connection failed: ${error.message}</div>`;
+                log(`Backend connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testRoles() {
+            const testDiv = document.getElementById('backendTest');
+            testDiv.innerHTML = '<div class="status info">Fetching roles...</div>';
+            
+            try {
+                const token = localStorage.getItem('access_token');
+                const response = await fetch(`${API_BASE}/users/roles`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                testDiv.innerHTML = `<div class="status success">✅ Roles fetched successfully!<pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+                log('Roles fetched successfully', 'success');
+            } catch (error) {
+                testDiv.innerHTML = `<div class="status error">❌ Failed to fetch roles: ${error.message}</div>`;
+                log(`Failed to fetch roles: ${error.message}`, 'error');
+            }
+        }
+
+        async function testUsers() {
+            const testDiv = document.getElementById('backendTest');
+            testDiv.innerHTML = '<div class="status info">Fetching users...</div>';
+            
+            try {
+                const token = localStorage.getItem('access_token');
+                const response = await fetch(`${API_BASE}/users`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                testDiv.innerHTML = `<div class="status success">✅ Users fetched! Count: ${data.length}<pre>${JSON.stringify(data.slice(0, 3), null, 2)}</pre></div>`;
+                log(`Users fetched: ${data.length} users`, 'success');
+            } catch (error) {
+                testDiv.innerHTML = `<div class="status error">❌ Failed to fetch users: ${error.message}</div>`;
+                log(`Failed to fetch users: ${error.message}`, 'error');
+            }
+        }
+
+        async function seedRoles() {
+            try {
+                const response = await fetch(`${API_BASE}/users/seed-roles`);
+                const data = await response.json();
+                log('Roles seeded successfully', 'success');
+                alert('Roles seeded: ' + JSON.stringify(data));
+            } catch (error) {
+                log(`Failed to seed roles: ${error.message}`, 'error');
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function testCreateUser() {
+            const testDiv = document.getElementById('backendTest');
+            testDiv.innerHTML = '<div class="status info">Testing user creation...</div>';
+            
+            const testUser = {
+                firstName: 'Test',
+                lastName: 'Responsable',
+                email: `test.resp.${Date.now()}@omnia.test`,
+                password: 'Test123!',
+                roleName: 'RESPONSABLE_TERRAIN'
+            };
+            
+            try {
+                const token = localStorage.getItem('access_token');
+                const response = await fetch(`${API_BASE}/users`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testUser)
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${JSON.stringify(data)}`);
+                }
+                
+                testDiv.innerHTML = `<div class="status success">✅ User created successfully!<pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+                log('Test user created successfully', 'success');
+            } catch (error) {
+                testDiv.innerHTML = `<div class="status error">❌ Failed to create user: ${error.message}</div>`;
+                log(`Failed to create user: ${error.message}`, 'error');
+            }
+        }
+
+        function goToLogin() {
+            window.location.href = '/auth/login';
+        }
+
+        function checkStatus() {
+            const statusDiv = document.getElementById('currentStatus');
+            const role = localStorage.getItem('role');
+            const token = localStorage.getItem('access_token');
+            const email = localStorage.getItem('user_email');
+            
+            let status = '<div class="grid">';
+            
+            status += `<div class="card">
+                <h3>Authentication</h3>
+                <div class="status ${token ? 'success' : 'error'}">
+                    Token: ${token ? '✅ Present' : '❌ Missing'}
+                </div>
+            </div>`;
+            
+            status += `<div class="card">
+                <h3>User Info</h3>
+                <div class="status ${email ? 'success' : 'warning'}">
+                    Email: ${email || 'Not set'}
+                </div>
+            </div>`;
+            
+            status += `<div class="card">
+                <h3>Role</h3>
+                <div class="status ${role ? 'success' : 'error'}">
+                    Role: ${role || '❌ Not set'}
+                </div>
+            </div>`;
+            
+            status += `<div class="card">
+                <h3>Current Page</h3>
+                <div class="status info">
+                    ${window.location.pathname}
+                </div>
+            </div>`;
+            
+            status += '</div>';
+            statusDiv.innerHTML = status;
+            
+            log('Status checked', 'info');
+        }
+
+        // Auto-check status on load
+        window.onload = () => {
+            checkStatus();
+            showLocalStorage();
+            log('Diagnostic tool loaded', 'success');
+        };
+    </script>
+</body>
+</html>

@@ -57,13 +57,8 @@ const MainRoutes = {
             component: () => import('@/views/beneficiaries/BeneficiaryForm.vue')
         },
         // Users
-        { path: '/users', name: 'Users', component: () => import('@/views/users/UsersList.vue') },
-        { path: '/users/new', name: 'NewUser', component: () => import('@/views/users/UserForm.vue') },
-        { path: '/users/edit/:id', name: 'EditUser', component: () => import('@/views/users/UserForm.vue') },
-        // Roles
-        { path: '/roles', name: 'Roles', component: () => import('@/views/roles/RolesList.vue') },
-        { path: '/roles/new', name: 'NewRole', component: () => import('@/views/roles/RoleForm.vue') },
-        { path: '/roles/edit/:id', name: 'EditRole', component: () => import('@/views/roles/RoleForm.vue') },
+        { path: '/benevoles', name: 'Benevoles', component: () => import('@/views/users/BenevolesList.vue') },
+        { path: '/responsables', name: 'Responsables', component: () => import('@/views/users/ResponsablesList.vue') },
         // Visits
         { path: '/visits', name: 'Visits', component: () => import('@/views/visits/VisitsList.vue') },
         { path: '/visits/new', name: 'NewVisit', component: () => import('@/views/visits/VisitForm.vue') },
@@ -77,10 +72,9 @@ const MainRoutes = {
         { path: '/cartography', name: 'Cartography', component: () => import('@/views/cartography/Cartography.vue') },
         { path: '/planning', name: 'Planning', component: () => import('@/views/planning/Planning.vue') },
         { path: '/history', name: 'History', component: () => import('@/views/history/History.vue') },
-        { path: '/benevoles', name: 'Benevoles', component: () => import('@/views/benevoles/BenevolesList.vue') },
         { path: '/reports', name: 'Reports', component: () => import('@/views/reports/Reports.vue') },
 
-       
+
     ]
 };
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { apiFetch } from '@/services/api';
 
 const router = useRouter();
 
@@ -37,37 +38,29 @@ async function handleRegister() {
     }
 
     isLoading.value = true;
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+        const response = await apiFetch('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify({
+                email: form.value.email,
+                password: form.value.password,
+                lastName: form.value.lastName,
+                firstName: form.value.firstName,
+                telephone: form.value.phone,
+                roleName: 'CITOYEN' // Mandatory role for public registration
+            })
+        });
 
-    const existingUsers = JSON.parse(localStorage.getItem('fo_registered_users') || '[]');
-
-    if (existingUsers.find((u: any) => u.email === form.value.email)) {
-        errorMsg.value = 'Cet email est déjà utilisé.';
         isLoading.value = false;
-        return;
+        successMsg.value = 'Compte créé avec succès ! Redirection vers la connexion...';
+
+        setTimeout(() => {
+            router.push('/auth/login');
+        }, 2000);
+    } catch (err: any) {
+        isLoading.value = false;
+        errorMsg.value = err.message || 'Une erreur est survenue lors de la création du compte.';
     }
-
-    const newUser = {
-        id: Date.now(),
-        firstName: form.value.firstName,
-        lastName: form.value.lastName,
-        email: form.value.email,
-        phone: form.value.phone,
-        password: form.value.password,
-        role: 'user',
-        status: 'Active',
-        createdAt: new Date().toISOString()
-    };
-
-    existingUsers.push(newUser);
-    localStorage.setItem('fo_registered_users', JSON.stringify(existingUsers));
-
-    isLoading.value = false;
-    successMsg.value = 'Compte créé avec succès ! Redirection vers la connexion...';
-
-    setTimeout(() => {
-        router.push('/auth/login');
-    }, 2000);
 }
 </script>
 
@@ -124,7 +117,7 @@ async function handleRegister() {
 
                     <div class="role-info">
                         <i class="fa fa-info-circle"></i>
-                        Votre compte sera créé avec le rôle <strong>Utilisateur</strong>.
+                        Votre compte sera créé avec le rôle <strong>Citoyen</strong>.
                     </div>
 
                     <div class="form-terms">

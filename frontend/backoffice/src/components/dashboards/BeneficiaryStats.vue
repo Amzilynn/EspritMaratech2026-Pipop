@@ -32,7 +32,7 @@ const chartOptions = computed(() => {
             }
         },
         stroke: { show: false },
-        colors: [primary, error, warning, info],
+        colors: [primary, error, info, '#707a82'],
         legend: { position: 'bottom', horizontalAlign: 'center' },
         tooltip: { theme: 'light', fillSeriesColor: false },
     };

@@ -11,6 +11,7 @@ export class AuthService {
     ) { }
 
     async register(registerDto: any) {
+        console.log('Registering user with DTO:', registerDto);
         const { email, password, firstName, lastName, roleName } = registerDto;
 
         const existingUser = await this.usersService.findOneByEmail(email);
@@ -19,10 +20,13 @@ export class AuthService {
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        const role = await this.usersService.findRoleByName(roleName || 'BENEVOLE');
+        // Force all public registrations to CITOYEN role
+        const targetRole = 'CITOYEN';
+        console.log(`Forcing registration role to ${targetRole} for ${email}`);
+        const role = await this.usersService.findRoleByName(targetRole);
 
         if (!role) {
-            throw new ConflictException('Role not found. Please seed roles first.');
+            throw new ConflictException(`Role ${targetRole} not found. Please seed roles first.`);
         }
 
         const user = await this.usersService.create({

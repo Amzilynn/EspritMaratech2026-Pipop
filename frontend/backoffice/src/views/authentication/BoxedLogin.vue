@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import type { UserRole } from '@/stores/auth';
+import { apiFetch } from '@/services/api';
 
 const authStore = useAuthStore();
 const email = ref('');
@@ -26,24 +27,36 @@ async function handleLogin() {
     }
 
     isLoading.value = true;
-    await new Promise(resolve => setTimeout(resolve, 800));
-    isLoading.value = false;
+    try {
+        const response = await apiFetch('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({
+                email: email.value,
+                password: password.value
+            })
+        });
 
-    if (selectedRole.value === 'user') {
-        // User role → redirect to frontoffice
-        // Set frontoffice user data
-        localStorage.setItem('fo_user', JSON.stringify({
-            email: email.value,
-            role: 'user',
-            name: email.value.split('@')[0]
-        }));
-        // DON'T clear localStorage yet - just redirect
-        // The frontoffice will handle its own session
-        console.log('Redirecting to frontoffice at http://localhost:5173/');
-        window.location.href = 'http://localhost:5173/';
-    } else {
-        // Admin, Responsable, Bénévole → stay in backoffice
-        authStore.login(email.value, selectedRole.value);
+        isLoading.value = false;
+
+        // Get role directly from backend (already uppercase)
+        const backendRole = response.user.role; // Don't convert to lowercase!
+        
+        console.log('Login response:', response);
+        console.log('Backend role:', backendRole);
+        
+        if (backendRole.toUpperCase() === 'CITOYEN') {
+            localStorage.setItem('fo_user', JSON.stringify(response.user));
+            localStorage.setItem('access_token', response.access_token);
+            window.location.href = 'http://localhost:5174/';
+        } else {
+            // Pass role as-is to auth store (it will normalize it)
+            console.log('Logging in with role:', backendRole);
+            authStore.login(response.user.email, backendRole);
+            localStorage.setItem('access_token', response.access_token);
+        }
+    } catch (err: any) {
+        isLoading.value = false;
+        errorMsg.value = err.message || 'Identifiants invalides.';
     }
 }
 </script>
