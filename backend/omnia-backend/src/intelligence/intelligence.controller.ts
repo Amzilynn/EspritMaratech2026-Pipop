@@ -23,7 +23,7 @@ import {
 export class IntelligenceController {
   private readonly logger = new Logger(IntelligenceController.name);
 
-  constructor(private readonly intelligenceService: IntelligenceService) {}
+  constructor(private readonly intelligenceService: IntelligenceService) { }
 
   // ========== Vulnerability Scoring ==========
 
@@ -151,6 +151,16 @@ export class IntelligenceController {
   async getMLServiceInfo(): Promise<any> {
     this.logger.log('Fetching ML service information');
     return this.intelligenceService.getMLServiceInfo();
+  }
+
+  /**
+   * Get global AI insights across the system
+   * GET /intelligence/global-insights
+   */
+  @Get('global-insights')
+  async getGlobalInsights(): Promise<any> {
+    this.logger.log('Fetching global AI insights');
+    return this.intelligenceService.getGlobalInsights();
   }
 
   /**

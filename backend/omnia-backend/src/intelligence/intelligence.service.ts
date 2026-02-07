@@ -4,6 +4,10 @@ import { Repository } from 'typeorm';
 import { Beneficiaire } from '../beneficiaires/entities/beneficiaire.entity';
 import { MedicationRecord } from '../ocr/entities/medication-record.entity';
 import { Resource } from '../resources/entities/resource.entity';
+import { VulnerabilityScore } from './entities/vulnerability-score.entity';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class IntelligenceService {
@@ -16,15 +20,17 @@ export class IntelligenceService {
         private readonly ocrRepository: Repository<MedicationRecord>,
         @InjectRepository(Resource)
         private readonly resourceRepository: Repository<Resource>,
+        @InjectRepository(VulnerabilityScore)
+        private readonly vulnerabilityRepo: Repository<VulnerabilityScore>,
+        private readonly httpService: HttpService,
+        private readonly configService: ConfigService,
     ) { }
 
-    /**
-     * Public method to calculate vulnerability score for a beneficiary
-     */
-    async calculateVulnerabilityScore(beneficiaire: Beneficiaire): Promise<number> {
-        const result = await this.calculateAdvancedVulnerabilityScore(beneficiaire);
-        return result.totalScore;
+    private get mlUrl(): string {
+        return this.configService.get<string>('ML_SERVICE_URL') || 'http://localhost:8001';
     }
+
+
 
     /**
      * Advanced Vulnerability Scoring Engine
@@ -415,5 +421,166 @@ export class IntelligenceService {
     private daysDifference(from: Date, to: Date): number {
         const oneDay = 24 * 60 * 60 * 1000;
         return Math.round(Math.abs((to.getTime() - from.getTime()) / oneDay));
+    }
+
+    // ========== Predictive Analytics (Calls ML Service) ==========
+
+    async calculateVulnerabilityScore(beneficiaire: Beneficiaire): Promise<any> {
+        try {
+            const payload = this.mapToMLInput(beneficiaire);
+            this.logger.log(`Calling ML /score with: ${JSON.stringify(payload)}`);
+            const response = await firstValueFrom(
+                this.httpService.post(`${this.mlUrl}/score`, payload)
+            );
+            return response.data;
+        } catch (error) {
+            this.logger.error(`ML Scoring failed: ${error.message}`);
+            if (error.response) {
+                this.logger.error(`ML Error Detail: ${JSON.stringify(error.response.data)}`);
+            }
+            // Fallback to local logic if ML fails
+            const result = await this.calculateAdvancedVulnerabilityScore(beneficiaire);
+            return this.mapToLocalResponse(beneficiaire, result);
+        }
+    }
+
+    async batchCalculateVulnerabilityScores(beneficiaries: any[]) {
+        try {
+            const response = await firstValueFrom(
+                this.httpService.post(`${this.mlUrl}/score/batch`, {
+                    beneficiaries: beneficiaries.map(b => this.mapToMLInput(b))
+                })
+            );
+            return response.data.results;
+        } catch (error) {
+            this.logger.error(`ML Batch scoring failed: ${error.message}`);
+            return Promise.all(beneficiaries.map(b => this.calculateVulnerabilityScore(b)));
+        }
+    }
+
+    async getVulnerabilityScore(beneficiaryId: string) {
+        const beneficiary = await this.beneficiaryRepository.findOne({ where: { id: beneficiaryId } });
+        if (!beneficiary) return null;
+        return this.calculateVulnerabilityScore(beneficiary);
+    }
+
+    async getVulnerabilityScores(filters: any) {
+        const beneficiaries = await this.beneficiaryRepository.find();
+        const data = await Promise.all(beneficiaries.map(b => this.calculateVulnerabilityScore(b)));
+        return {
+            data,
+            total: data.length
+        };
+    }
+
+    async predictAreaNeeds(beneficiariesByArea: Record<string, any[]>) {
+        try {
+            // We need scores to send to ML service
+            const scoresById: Record<string, any> = {};
+            for (const area in beneficiariesByArea) {
+                const areaScores = await this.batchCalculateVulnerabilityScores(beneficiariesByArea[area]);
+                areaScores.forEach((s: any) => scoresById[s.beneficiary_id] = s);
+            }
+
+            const mappedBeneficiariesByArea: Record<string, any[]> = {};
+            for (const area in beneficiariesByArea) {
+                mappedBeneficiariesByArea[area] = beneficiariesByArea[area].map(b => this.mapToMLInput(b));
+            }
+
+            const response = await firstValueFrom(
+                this.httpService.post(`${this.mlUrl}/predict/area-needs`, {
+                    beneficiaries_by_area: mappedBeneficiariesByArea,
+                    scores_by_id: scoresById
+                })
+            );
+            return response.data.predictions;
+        } catch (error) {
+            this.logger.error(`ML Area Prediction failed: ${error.message}`);
+            return [];
+        }
+    }
+
+    async detectHealthPatterns(beneficiaries: any[]) {
+        try {
+            const scores = await this.batchCalculateVulnerabilityScores(beneficiaries);
+            const response = await firstValueFrom(
+                this.httpService.post(`${this.mlUrl}/predict/health-patterns`, {
+                    beneficiaries: beneficiaries.map(b => this.mapToMLInput(b)),
+                    scores: scores
+                })
+            );
+            return response.data.alerts;
+        } catch (error) {
+            this.logger.error(`ML Health Pattern detection failed: ${error.message}`);
+            return [];
+        }
+    }
+
+    async analyzeMigrationTrends(beneficiaries: any[]) {
+        try {
+            const response = await firstValueFrom(
+                this.httpService.post(
+                    `${this.mlUrl}/predict/migration-trends`,
+                    beneficiaries.map(b => this.mapToMLInput(b))
+                )
+            );
+            return response.data.trends;
+        } catch (error) {
+            this.logger.error(`ML Migration Trend analysis failed: ${error.message}`);
+            return {};
+        }
+    }
+
+    async getMLServiceHealth() {
+        try {
+            const response = await firstValueFrom(this.httpService.get(`${this.mlUrl}/health`));
+            return response.data;
+        } catch (error) {
+            return { status: 'down', error: error.message };
+        }
+    }
+
+    async getMLServiceInfo() {
+        try {
+            const response = await firstValueFrom(this.httpService.get(`${this.mlUrl}/info`));
+            return response.data;
+        } catch (error) {
+            return { error: error.message };
+        }
+    }
+
+    // ========== Helpers ==========
+
+    private mapToMLInput(b: Beneficiaire) {
+        return {
+            id: b.id || 'temp-id',
+            nbMembres: Number(b.nbMembres) || 1,
+            nbEnfants: Number(b.nbEnfants) || 0,
+            nbPersonnesAgees: Number(b.nbPersonnesAgees) || 0,
+            nbHandicapes: Number(b.nbHandicapes) || 0,
+            revenuMensuel: b.revenuMensuel ? Number(b.revenuMensuel) : null,
+            typeLogement: b.typeLogement,
+            statutSocial: b.statutSocial,
+            migrationStatus: b.migrationStatus,
+            healthConditions: b.healthConditions,
+            medicalVisitsCount: b.medicalVisitsCount || 0,
+            medicationRecordsCount: b.medicationRecordsCount || 0,
+            lastAidDistributionDate: b.lastAidDistributionDate
+        };
+    }
+
+    private mapToLocalResponse(b: Beneficiaire, result: any) {
+        return {
+            id: 'local-' + Date.now(),
+            beneficiary_id: b.id,
+            vulnerabilityScore: result.totalScore,
+            economicFactor: result.details.economic,
+            healthFactor: result.details.health,
+            socialFactor: result.details.social,
+            urgencyFactor: result.details.urgency,
+            riskLevel: result.riskLevel,
+            recommendations: result.recommendations,
+            calculated_at: new Date()
+        };
     }
 }
