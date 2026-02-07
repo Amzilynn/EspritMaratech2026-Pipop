@@ -1,10 +1,36 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { UsersModule } from './users/users.module';
+import { BeneficiairesModule } from './beneficiaires/beneficiaires.module';
+import { VisitsModule } from './visits/visits.module';
+import { AuditModule } from './audit/audit.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
-  imports: [],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT || '5432', 10),
+      username: process.env.DB_USERNAME || 'postgres',
+      password: process.env.DB_PASSWORD || 'postgres',
+      database: process.env.DB_NAME || 'omnia_db',
+      autoLoadEntities: true,
+      synchronize: true, // Be careful with this in production
+    }),
+    UsersModule,
+    BeneficiairesModule,
+    VisitsModule,
+    AuditModule,
+    AuthModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

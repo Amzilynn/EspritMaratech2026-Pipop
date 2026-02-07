@@ -1,0 +1,95 @@
+﻿
+
+id        : a1d631e6-ab96-4253-918a-1cc790c5c44c
+email     : test-volunteer@omnia.tn
+firstName : Test Updated
+lastName  : Volunteer
+role      : @{id=3; name=BENEVOLE}
+
+id        : a1d631e6-ab96-4253-918a-1cc790c5c44c
+email     : test-volunteer@omnia.tn
+firstName : Test Updated
+lastName  : Volunteer
+role      : @{id=3; name=BENEVOLE}
+
+id               : 825719a3-9987-4f9f-a95e-0b98968b06ec
+codeFamille      : T-FAM-4145
+telephone        : 
+nbMembres        : 4
+nbEnfants        : 0
+nbPersonnesAgees : 0
+nbHandicapes     : 0
+revenuMensuel    : 
+typeLogement     : 
+statutSocial     : 
+situationSociale : Initial social situation.
+active           : True
+
+id               : 825719a3-9987-4f9f-a95e-0b98968b06ec
+codeFamille      : T-FAM-4145
+telephone        : 
+nbMembres        : 4
+nbEnfants        : 0
+nbPersonnesAgees : 0
+nbHandicapes     : 0
+revenuMensuel    : 
+typeLogement     : 
+statutSocial     : 
+situationSociale : Updated situation.
+active           : True
+
+id                 : d3d31256-8259-4af1-a9d2-4214ec63aa49
+date               : 2026-02-07T10:51:35.316Z
+notes              : First test visit notes.
+user               : @{id=a1d631e6-ab96-4253-918a-1cc790c
+                     5c44c; 
+                     email=test-volunteer@omnia.tn; 
+                     firstName=Test Updated; 
+                     lastName=Volunteer}
+visitBeneficiaires : {@{id=70d1b484-7784-4d3e-9477-a3e166
+                     7b8bd9; beneficiaire=; 
+                     aids=System.Object[]}}
+
+id                 : d3d31256-8259-4af1-a9d2-4214ec63aa49
+date               : 2026-02-07T10:51:35.316Z
+notes              : Corrected notes.
+user               : @{id=a1d631e6-ab96-4253-918a-1cc790c
+                     5c44c; 
+                     email=test-volunteer@omnia.tn; 
+                     firstName=Test Updated; 
+                     lastName=Volunteer}
+visitBeneficiaires : {@{id=70d1b484-7784-4d3e-9477-a3e166
+                     7b8bd9; beneficiaire=; 
+                     aids=System.Object[]}}
+
+id                 : de64df15-6a34-406c-b142-2248a4a1fda4
+type               : Food
+natureIntervention : Distribution
+isRecurring        : False
+valeurEstimee      : 
+dateDistribution   : 2026-02-07T10:51:35.322Z
+quantite           : 99
+unite              : Box
+
+type               : Food
+natureIntervention : Distribution
+isRecurring        : False
+valeurEstimee      : 
+dateDistribution   : 2026-02-07T10:51:35.322Z
+quantite           : 99.00
+unite              : Box
+
+date               : 2026-02-07T10:51:35.316Z
+notes              : Corrected notes.
+user               : @{id=a1d631e6-ab96-4253-918a-1cc790c
+                     5c44c; 
+                     email=test-volunteer@omnia.tn; 
+                     firstName=Test Updated; 
+                     lastName=Volunteer}
+visitBeneficiaires : {@{id=70d1b484-7784-4d3e-9477-a3e166
+                     7b8bd9; beneficiaire=; 
+                     aids=System.Object[]}}
+
+
+
+
