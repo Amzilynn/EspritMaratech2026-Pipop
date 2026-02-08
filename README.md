@@ -20,7 +20,6 @@ The platform is built using a modern microservice-style architecture:
 *   **Vulnerability Scoring**: Custom algorithm to prioritize aid based on economic, health, and social factors.
 *   **OCR Scanner**: Medical prescription extraction using EasyOCR.
 *   **Face Recognition**: Biometric identity verification using VGG-Face models.
-*   **Predictive Analytics**: Outbreak detection, migration trend analysis, and area-based needs forecasting.
 
 ## 🌟 Key Features
 
@@ -79,5 +78,3 @@ The project uses a custom UI library (Omnia DS) defined in:
 *   `--dark-blue`: #163B5C
 *   **Typography**: 'Outfit', 'Inter'
 
-## 📄 License
-This project is licensed under the Association Omnia. All rights reserved. 2024.
