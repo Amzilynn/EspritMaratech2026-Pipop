@@ -48,16 +48,44 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { aides } from '@/data/aides';
-import type { Aide } from '@/types/aide';
+import { ref, onMounted } from 'vue';
+import { apiFetch } from '@/services/api';
 
-const aideList = ref<Aide[]>(aides);
+const aideList = ref<any[]>([]);
+const isLoading = ref(false);
 
-const deleteAide = (id: number) => {
+const fetchAides = async () => {
+    isLoading.value = true;
+    try {
+        const data = await apiFetch('/visits/aids/all');
+        aideList.value = data.map((a: any) => ({
+            id: a.id,
+            beneficiary: a.visitBeneficiaire?.beneficiaire 
+                ? `${a.visitBeneficiaire.beneficiaire.firstName} ${a.visitBeneficiaire.beneficiaire.lastName}`
+                : 'N/A',
+            type: a.type || '-',
+            amount: a.valeurEstimee ? `${a.valeurEstimee} TND` : '-',
+            date: new Date(a.dateDistribution).toLocaleDateString(),
+            status: a.natureIntervention || 'Distribué',
+            // Store raw status for styling if needed, or map logic
+        }));
+    } catch (e) {
+        console.error('Error loading aides:', e);
+    } finally {
+        isLoading.value = false;
+    }
+};
+
+onMounted(fetchAides);
+
+const deleteAide = async (id: string) => {
   if (confirm('Supprimer cette aide ?')) {
-    const index = aideList.value.findIndex(a => a.id === id);
-    if (index !== -1) aideList.value.splice(index, 1);
+    try {
+        await apiFetch(`/visits/aids/${id}`, { method: 'DELETE' });
+        aideList.value = aideList.value.filter(a => a.id !== id);
+    } catch (e) {
+        alert('Erreur lors de la suppression');
+    }
   }
 };
 </script>

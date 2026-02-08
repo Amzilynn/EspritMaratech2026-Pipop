@@ -13,7 +13,7 @@ export class Visit {
     @Column({ type: 'text', nullable: true })
     notes: string;
 
-    @ManyToOne(() => User, (user) => user.visits)
+    @ManyToOne(() => User, (user) => user.visits, { onDelete: 'SET NULL' })
     user: User;
 
     @OneToMany(() => VisitBeneficiaire, (vb) => vb.visit, { cascade: true })

@@ -10,20 +10,18 @@
       <form @submit.prevent="saveVisit">
         <div class="field-group">
           <label class="field-label">Bénéficiaire</label>
-          <select class="field-input" v-model="form.beneficiary" required>
-            <option value="Famille Ben Ali">Famille Ben Ali</option>
-            <option value="Famille Trabelsi">Famille Trabelsi</option>
-            <option value="Famille Gueddafi">Famille Gueddafi</option>
+          <select class="field-input" v-model="form.beneficiaryId" required>
+            <option value="" disabled>Sélectionner un bénéficiaire</option>
+            <option v-for="b in beneficiaries" :key="b.id" :value="b.id">
+              {{ b.firstName }} {{ b.lastName }}
+            </option>
           </select>
         </div>
         <div class="field-group">
-          <label class="field-label">Date de visite</label>
-          <input type="date" class="field-input" v-model="form.date" required />
+          <label class="field-label">Date de visite (Automatique)</label>
+          <input type="date" class="field-input" v-model="form.date" disabled />
         </div>
-        <div class="field-group">
-          <label class="field-label">Visiteur</label>
-          <input type="text" class="field-input" v-model="form.visitor" required />
-        </div>
+        <!-- Visitor is authenticated user -->
         <div class="field-group">
           <label class="field-label">Notes</label>
           <textarea class="field-input" v-model="form.notes" rows="4" required></textarea>
@@ -40,33 +38,73 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { visits } from '@/data/visits';
-import type { Visit } from '@/types/visit';
+import { apiFetch } from '@/services/api';
 
 const route = useRoute();
 const router = useRouter();
 const isEdit = ref(false);
-const form = ref<Visit>({ id: 0, beneficiary: '', date: '', visitor: '', notes: '' });
+const form = ref({
+    id: '',
+    date: new Date().toISOString().split('T')[0],
+    notes: '',
+    beneficiaryId: '' 
+});
 
-onMounted(() => {
-  const id = Number(route.params.id);
-  if (id) {
+const beneficiaries = ref<any[]>([]);
+
+const loadBeneficiaries = async () => {
+    try {
+        const data = await apiFetch('/beneficiaires');
+        beneficiaries.value = data;
+    } catch(e) { console.error('Error loading beneficiaries', e); }
+};
+
+onMounted(async () => {
+  await loadBeneficiaries();
+  // Check if ID exists and is not 'new' or empty (router sometimes passes artifacts)
+  const id = route.params.id;
+  if (id && id !== 'new') {
     isEdit.value = true;
-    const found = visits.find(v => v.id === id);
-    if (found) form.value = { ...found };
-  } else {
-    form.value.id = Date.now();
+    try {
+        const visit = await apiFetch(`/visits/${id}`);
+        form.value = {
+            id: visit.id,
+            date: visit.date ? new Date(visit.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            notes: visit.notes || '',
+            beneficiaryId: visit.visitBeneficiaires?.[0]?.beneficiaire?.id || ''
+        };
+    } catch(e) { console.error('Error loading visit', e); }
   }
 });
 
-const saveVisit = () => {
-  if (isEdit.value) {
-    const idx = visits.findIndex(v => v.id === form.value.id);
-    if (idx !== -1) visits[idx] = form.value;
-  } else {
-    visits.push(form.value);
+const saveVisit = async () => {
+  try {
+       // Construct payload matching backend expectations
+       const payload = {
+           notes: form.value.notes,
+           // For simple visits, we associate one beneficiary. Backend expects 'associations' array.
+           associations: [{ 
+               beneficiaryId: form.value.beneficiaryId, 
+               aids: [] // Can extend to add aids here later
+           }]
+       };
+
+       if (isEdit.value) {
+           await apiFetch(`/visits/${form.value.id}`, { 
+               method: 'PATCH', 
+               body: JSON.stringify({ notes: form.value.notes }) // Update currently only supports simple fields easily
+           });
+       } else {
+           await apiFetch('/visits', { 
+               method: 'POST', 
+               body: JSON.stringify(payload) 
+           });
+       }
+       router.push('/visits');
+  } catch(e) {
+      alert('Erreur lors de la sauvegarde');
+      console.error(e);
   }
-  router.push('/visits');
 };
 </script>
 

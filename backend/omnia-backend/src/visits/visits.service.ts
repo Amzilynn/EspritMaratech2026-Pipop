@@ -109,4 +109,20 @@ export class VisitsService {
         if (!aid) throw new NotFoundException('Aid not found');
         return this.aidRepository.remove(aid);
     }
+
+    async findAllAids() {
+        return this.aidRepository.find({
+            relations: {
+                visitBeneficiaire: {
+                    beneficiaire: true,
+                    visit: {
+                        user: true
+                    }
+                }
+            },
+            order: {
+                dateDistribution: 'DESC'
+            }
+        });
+    }
 }

@@ -28,49 +28,42 @@ export interface menu {
 }
 
 const sidebarItem: menu[] = [
-  { header: 'Tableau de bord', roles: ['ADMIN'] },
+  { header: 'Tableau de bord' },
   {
     title: 'Dashboard',
-    icon: LayoutDashboardIcon,
+    icon: 'mdi-view-dashboard',
     BgColor: 'primary',
     to: '/',
-    roles: ['ADMIN']
+    roles: ['ADMIN', 'RESPONSABLE_TERRAIN', 'BENEVOLE']
   },
   { header: 'Gestion' },
   {
     title: 'Familles Bénéficiaires',
-    icon: MoodHappyIcon,
+    icon: 'mdi-emoticon-happy',
     BgColor: 'primary',
     to: '/beneficiaries',
     roles: ['ADMIN', 'RESPONSABLE_TERRAIN', 'BENEVOLE']
   },
   {
     title: 'Visites',
-    icon: CircleDotIcon,
+    icon: 'mdi-map-marker-path',
     BgColor: 'primary',
     to: '/visits',
     roles: ['ADMIN', 'RESPONSABLE_TERRAIN', 'BENEVOLE']
   },
   {
     title: 'Aides',
-    icon: BoxMultiple1Icon,
+    icon: 'mdi-gift',
     BgColor: 'primary',
     to: '/aides',
     roles: ['ADMIN', 'RESPONSABLE_TERRAIN', 'BENEVOLE']
   },
   {
     title: 'Localisation',
-    icon: AlertCircleIcon,
+    icon: 'mdi-crosshairs-gps',
     BgColor: 'primary',
     to: '/localisation',
-    roles: ['BENEVOLE']
-  },
-  {
-    title: 'Historique',
-    icon: BorderAllIcon,
-    BgColor: 'primary',
-    to: '/history',
-    roles: ['RESPONSABLE_TERRAIN', 'BENEVOLE']
+    roles: ['BENEVOLE', 'RESPONSABLE_TERRAIN']
   },
   { header: 'Administration', roles: ['ADMIN', 'RESPONSABLE_TERRAIN'] },
   {
@@ -87,17 +80,24 @@ const sidebarItem: menu[] = [
     to: '/responsables',
     roles: ['ADMIN']
   },
-  { header: 'Rapports', roles: ['RESPONSABLE_TERRAIN'] },
+  { header: 'Analyses', roles: ['ADMIN', 'RESPONSABLE_TERRAIN'] },
   {
-    title: 'Cartographie',
-    icon: BorderAllIcon,
+    title: 'Rapports',
+    icon: 'mdi-chart-pie',
+    BgColor: 'primary',
+    to: '/reports',
+    roles: ['ADMIN', 'RESPONSABLE_TERRAIN']
+  },
+  {
+    title: 'Priorités & Risques',
+    icon: 'mdi-alert-decagram',
     BgColor: 'primary',
     to: '/cartography',
-    roles: ['RESPONSABLE_TERRAIN']
+    roles: ['ADMIN', 'RESPONSABLE_TERRAIN']
   },
   {
     title: 'Planification',
-    icon: BorderAllIcon,
+    icon: 'mdi-calendar-clock',
     BgColor: 'primary',
     to: '/planning',
     roles: ['RESPONSABLE_TERRAIN']

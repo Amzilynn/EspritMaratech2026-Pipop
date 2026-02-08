@@ -42,24 +42,49 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { visits } from '@/data/visits';
-import type { Visit } from '@/types/visit';
+import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
+import { apiFetch } from '@/services/api';
 
 const authStore = useAuthStore();
 const role = computed(() => authStore.role);
 
-const canCreate = computed(() => ['benevole'].includes(role.value || ''));
-const canEdit = computed(() => ['responsable', 'benevole'].includes(role.value || ''));
-const canDelete = computed(() => ['admin'].includes(role.value || ''));
+// Permissions
+const canCreate = computed(() => ['BENEVOLE', 'RESPONSABLE_TERRAIN', 'ADMIN'].includes(role.value || ''));
+const canEdit = computed(() => ['RESPONSABLE_TERRAIN', 'ADMIN'].includes(role.value || ''));
+const canDelete = computed(() => ['ADMIN'].includes(role.value || ''));
 
-const visitList = ref<Visit[]>(visits);
+const visitList = ref<any[]>([]);
+const isLoading = ref(false);
 
-const deleteVisit = (id: number) => {
+const fetchVisits = async () => {
+    isLoading.value = true;
+    try {
+        const data = await apiFetch('/visits');
+        visitList.value = data.map((v: any) => ({
+            id: v.id,
+            beneficiary: v.visitBeneficiaires?.map((vb: any) => vb.beneficiaire?.firstName + ' ' + vb.beneficiaire?.lastName).join(', ') || 'N/A',
+            date: new Date(v.date).toLocaleDateString(),
+            visitor: v.user ? (v.user.firstName + ' ' + v.user.lastName) : 'Inconnu',
+            notes: v.notes || '-'
+        }));
+    } catch (e) {
+        console.error('Error loading visits:', e);
+    } finally {
+        isLoading.value = false;
+    }
+};
+
+onMounted(fetchVisits);
+
+const deleteVisit = async (id: string) => {
   if (confirm('Supprimer cette visite ?')) {
-    const index = visitList.value.findIndex(v => v.id === id);
-    if (index !== -1) visitList.value.splice(index, 1);
+    try {
+        await apiFetch(`/visits/${id}`, { method: 'DELETE' });
+        visitList.value = visitList.value.filter(v => v.id !== id);
+    } catch (e) {
+        alert('Erreur lors de la suppression');
+    }
   }
 };
 </script>

@@ -22,6 +22,12 @@ export class VisitsController {
     }
 
     @Roles('BENEVOLE', 'RESPONSABLE_TERRAIN', 'ADMIN')
+    @Get('aids/all')
+    async findAllAids() {
+        return this.visitsService.findAllAids();
+    }
+
+    @Roles('BENEVOLE', 'RESPONSABLE_TERRAIN', 'ADMIN')
     @Get(':id')
     async findOne(@Param('id') id: string) {
         return this.visitsService.findOne(id);
