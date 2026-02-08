@@ -74,7 +74,7 @@ async function seed() {
     }
 
     // 1. ROLES
-    const roles = ['ADMIN', 'RESPONSABLE_TERRAIN', 'BENEVOLE'];
+    const roles = ['ADMIN', 'RESPONSABLE_TERRAIN', 'BENEVOLE', 'CITOYEN'];
     const savedRoles: Record<string, Role> = {};
     for (const name of roles) {
         savedRoles[name] = await roleRepo.save(roleRepo.create({ name }));

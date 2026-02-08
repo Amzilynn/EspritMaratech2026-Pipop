@@ -12,6 +12,7 @@ import { OcrModule } from './ocr/ocr.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
 import { ResourcesModule } from './resources/resources.module';
 import { PlanningModule } from './planning/planning.module';
+import { PrescriptionsModule } from './prescriptions/prescriptions.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { PlanningModule } from './planning/planning.module';
     IntelligenceModule,
     ResourcesModule,
     PlanningModule,
+    PrescriptionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

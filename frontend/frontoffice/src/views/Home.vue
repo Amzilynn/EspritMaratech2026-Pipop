@@ -1,5 +1,10 @@
 <script setup lang="ts">
-// Home page
+import { computed } from 'vue'
+
+// Check if user is logged in
+const isLoggedIn = computed(() => {
+    return !!localStorage.getItem('access_token')
+})
 </script>
 
 <template>
@@ -24,9 +29,14 @@
                                     <a href="#"><i class="fa fa-instagram"></i></a>
                                     <a href="#"><i class="fa fa-linkedin"></i></a>
                                 </div>
-                                <div class="auth-buttons">
+                                <div class="auth-buttons" v-if="!isLoggedIn">
                                     <router-link to="/login" class="btn-signin">Se Connecter</router-link>
                                     <router-link to="/register" class="btn-signup">S'inscrire</router-link>
+                                </div>
+                                <div class="auth-buttons" v-else>
+                                    <router-link to="/profile" class="btn-profile">
+                                        <i class="fa fa-user"></i> Mon Profil
+                                    </router-link>
                                 </div>
                             </div>
                         </div>
@@ -51,6 +61,7 @@
                                         <li><router-link to="/bureau">BUREAU</router-link></li>
                                         <li><router-link to="/actions">ACTIONS</router-link></li>
                                         <li><router-link to="/galerie">GALERIE</router-link></li>
+                                        <li><router-link to="/ocr">ORDONNANCE</router-link></li>
                                         <li><router-link to="/partners">NOS PARTENAIRES</router-link></li>
                                         <li><router-link to="/contact">CONTACT</router-link></li>
                                     </ul>
@@ -533,5 +544,24 @@
 }
 .video_bg_1 {
     background-image: url(/img/banner/banner.png);
+}
+
+.btn-profile {
+    padding: 8px 20px;
+    background: linear-gradient(135deg, #2B7EC1, #1E5A8E);
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-profile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(43, 126, 193, 0.4);
 }
 </style>

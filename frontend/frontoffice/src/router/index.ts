@@ -49,6 +49,16 @@ const router = createRouter({
       name: 'register',
       component: () => import('../views/Register.vue')
     },
+    {
+      path: '/ocr',
+      name: 'ocr',
+      component: () => import('../views/OCR.vue')
+    },
+    {
+      path: '/profile',
+      name: 'profile',
+      component: () => import('../views/Profile.vue')
+    },
   ]
 })
 
