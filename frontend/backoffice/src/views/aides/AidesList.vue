@@ -1,121 +1,239 @@
-<template>
-  <section class="page-container">
-    <header class="page-header">
-      <div>
-        <p class="eyebrow">Aides</p>
-        <h2>Gestion des Aides</h2>
-        <p class="subtle">Suivi des aides distribuées.</p>
-      </div>
-      <router-link to="/aides/new" class="btn btn-primary">Nouvelle aide</router-link>
-    </header>
-
-    <div class="table-card">
-      <div class="table-wrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Bénéficiaire</th>
-              <th>Type</th>
-              <th>Montant</th>
-              <th>Date</th>
-              <th>Statut</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="aide in aideList" :key="aide.id">
-              <td>{{ aide.beneficiary }}</td>
-              <td>{{ aide.type }}</td>
-              <td>{{ aide.amount }}</td>
-              <td>{{ aide.date }}</td>
-              <td>
-                <span class="status-chip" :class="aide.status === 'Validé' ? 'is-valid' : 'is-pending'">
-                  {{ aide.status }}
-                </span>
-              </td>
-              <td>
-                <div class="actions">
-                  <router-link :to="`/aides/edit/${aide.id}`" class="btn btn-sm btn-warning">Modifier</router-link>
-                  <button @click="deleteAide(aide.id)" class="btn btn-sm btn-danger">Supprimer</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-</template>
-
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { apiFetch } from '@/services/api';
+import { onMounted, computed, ref } from 'vue';
+import { useAuthStore } from '@/stores/auth';
+import { useAidStore, Aid } from '@/stores/aid.store';
+import {
+  VContainer, VRow, VCol, VBtn, VCard, VCardTitle, VCardText,
+  VIcon, VChip, VTextField, VSpacer, VAvatar, VTabs, VTab,
+  VExpansionPanels, VExpansionPanel, VExpansionPanelTitle, VExpansionPanelText,
+  VPagination, VDivider, VTable
+} from 'vuetify/components';
 
-const aideList = ref<any[]>([]);
-const isLoading = ref(false);
+// -------------------- STORES --------------------
+const authStore = useAuthStore();
+const aidStore = useAidStore();
 
-const fetchAides = async () => {
-    isLoading.value = true;
-    try {
-        const data = await apiFetch('/visits/aids/all');
-        aideList.value = data.map((a: any) => ({
-            id: a.id,
-            beneficiary: a.visitBeneficiaire?.beneficiaire 
-                ? `${a.visitBeneficiaire.beneficiaire.firstName} ${a.visitBeneficiaire.beneficiaire.lastName}`
-                : 'N/A',
-            type: a.type || '-',
-            amount: a.valeurEstimee ? `${a.valeurEstimee} TND` : '-',
-            date: new Date(a.dateDistribution).toLocaleDateString(),
-            status: a.natureIntervention || 'Distribué',
-            // Store raw status for styling if needed, or map logic
-        }));
-    } catch (e) {
-        console.error('Error loading aides:', e);
-    } finally {
-        isLoading.value = false;
-    }
-};
+// -------------------- STATE --------------------
+const search = ref('');
+const activeView = ref('list'); // 'list' or 'analysis'
+const page = ref(1);
+const itemsPerPage = 8;
 
-onMounted(fetchAides);
+// -------------------- FETCH DATA --------------------
+onMounted(() => {
+  aidStore.fetchAids();
+});
 
-const deleteAide = async (id: string) => {
-  if (confirm('Supprimer cette aide ?')) {
-    try {
-        await apiFetch(`/visits/aids/${id}`, { method: 'DELETE' });
-        aideList.value = aideList.value.filter(a => a.id !== id);
-    } catch (e) {
-        alert('Erreur lors de la suppression');
-    }
+// -------------------- ANALYSIS LOGIC --------------------
+const analysis = computed(() => {
+  const aids = aidStore.aids;
+  
+  // Group by Type
+  const byType: Record<string, { count: number, value: number }> = {};
+  // Group by Date (Last 6 Months)
+  const monthly: Record<string, number> = {};
+  
+  aids.forEach(a => {
+    const t = a.type || 'Autre';
+    if (!byType[t]) byType[t] = { count: 0, value: 0 };
+    byType[t].count++;
+    byType[t].value += (a.valeurEstimee || 0);
+
+    const date = new Date(a.dateDistribution);
+    const month = date.toLocaleString('fr-FR', { month: 'short' });
+    monthly[month] = (monthly[month] || 0) + (a.valeurEstimee || 0);
+  });
+
+  return { byType, monthly };
+});
+
+const stats = computed(() => {
+  const all = aidStore.aids;
+  return {
+    total: all.length,
+    urgent: all.filter(a => a.natureIntervention === 'Urgente' || a.natureIntervention === 'Urgent').length,
+    totalValue: all.reduce((acc, a) => acc + (a.valeurEstimee || 0), 0)
+  };
+});
+
+// -------------------- SEARCH & FILTER --------------------
+const filteredAids = computed(() => {
+  let list = [...aidStore.aids];
+  const term = search.value.toLowerCase();
+  if (term) {
+    list = list.filter(a => 
+      (a.beneficiaryName || '').toLowerCase().includes(term) || 
+      (a.type || '').toLowerCase().includes(term)
+    );
   }
+  return list.sort((a, b) => new Date(b.dateDistribution).getTime() - new Date(a.dateDistribution).getTime());
+});
+
+const paginatedAids = computed(() => {
+  const start = (page.value - 1) * itemsPerPage;
+  return filteredAids.value.slice(start, start + itemsPerPage);
+});
+
+const pageCount = computed(() => Math.ceil(filteredAids.value.length / itemsPerPage));
+
+// -------------------- HELPERS --------------------
+const formatDate = (date: string) => new Date(date).toLocaleDateString('fr-FR');
+const getAidColor = (type: string) => {
+  const t = type.toLowerCase();
+  if (t.includes('aliment')) return 'orange';
+  if (t.includes('médic')) return 'red';
+  if (t.includes('financ')) return 'green';
+  return 'blue';
 };
 </script>
 
+<template>
+  <VContainer fluid class="pa-6 bg-grey-lighten-4 min-vh-100">
+    <!-- HERO HEADER -->
+    <VRow class="mb-6">
+      <VCol cols="12" md="6">
+        <h1 class="text-h3 font-weight-black mb-1">Aides Octroyées</h1>
+        <p class="text-subtitle-1 text-grey-darken-1">Console d'agrégation et d'analyse des ressources distribuées.</p>
+      </VCol>
+      <VCol cols="12" md="6" class="text-md-right">
+        <VBtn 
+          :color="activeView === 'list' ? 'primary' : 'white'" 
+          class="mr-2 px-6" 
+          rounded="pill" 
+          elevation="2"
+          @click="activeView = 'list'"
+        >
+          <VIcon start>mdi-format-list-bulleted</VIcon> Liste
+        </VBtn>
+        <VBtn 
+          :color="activeView === 'analysis' ? 'primary' : 'white'" 
+          class="px-6" 
+          rounded="pill" 
+          elevation="2"
+          @click="activeView = 'analysis'"
+        >
+          <VIcon start>mdi-chart-pie</VIcon> Analyse
+        </VBtn>
+      </VCol>
+    </VRow>
+
+    <!-- KPI ROW -->
+    <VRow class="mb-6">
+      <VCol cols="12" sm="4" v-for="s in [
+        { label: 'Aides Totales', val: stats.total, color: 'primary', icon: 'mdi-gift' },
+        { label: 'Valeur Totale', val: stats.totalValue.toLocaleString() + ' TND', color: 'success', icon: 'mdi-currency-tnd' },
+        { label: 'Urgences', val: stats.urgent, color: 'error', icon: 'mdi-fire' }
+      ]" :key="s.label">
+        <VCard rounded="xl" class="pa-5 border-s-lg h-100" :class="'border-' + s.color">
+          <div class="d-flex justify-space-between align-center">
+            <div>
+              <div class="text-overline text-grey">{{ s.label }}</div>
+              <div class="text-h4 font-weight-black">{{ s.val }}</div>
+            </div>
+            <VIcon :color="s.color" size="48" class="opacity-20">{{ s.icon }}</VIcon>
+          </div>
+        </VCard>
+      </VCol>
+    </VRow>
+
+    <!-- LIST VIEW -->
+    <div v-if="activeView === 'list'">
+      <VCard rounded="xl" class="mb-6 pa-4 border shadow-premium">
+        <VTextField
+          v-model="search"
+          prepend-inner-icon="mdi-magnify"
+          placeholder="Filtrer par famille, type d'aide ou zone..."
+          hide-details
+          variant="solo"
+          flat
+          rounded="pill"
+          class="bg-grey-lighten-4"
+        />
+      </VCard>
+
+      <div v-if="aidStore.loading" class="text-center py-12">
+        <VProgressCircular indeterminate color="primary" />
+      </div>
+
+      <VRow v-else>
+        <VCol v-for="aid in paginatedAids" :key="aid.id" cols="12" md="6" lg="4">
+          <VCard rounded="xl" elevation="3" class="pa-5 hover-card h-100 border">
+            <div class="d-flex align-center mb-4">
+              <VAvatar :color="getAidColor(aid.type)" size="48" variant="flat" class="mr-4">
+                <VIcon color="white">mdi-package-variant</VIcon>
+              </VAvatar>
+              <div>
+                <div class="text-h6 font-weight-bold line-height-tight">{{ aid.beneficiaryName }}</div>
+                <div class="text-caption text-grey">{{ formatDate(aid.dateDistribution) }}</div>
+              </div>
+            </div>
+            <VDivider class="mb-4" />
+            <div class="d-flex justify-space-between align-center mb-2">
+              <span class="text-subtitle-2 text-grey">Nature</span>
+              <VChip size="x-small" label class="font-weight-bold">{{ aid.type }}</VChip>
+            </div>
+            <div class="d-flex justify-space-between align-center mb-4">
+              <span class="text-subtitle-2 text-grey">Valeur</span>
+              <span class="text-h6 font-weight-black text-primary">{{ aid.valeurEstimee }} TND</span>
+            </div>
+            <VBtn block variant="tonal" size="small" rounded="pill">Détails de l'attribution</VBtn>
+          </VCard>
+        </VCol>
+      </VRow>
+
+      <div class="d-flex justify-center mt-10">
+        <VPagination v-model="page" :length="pageCount" rounded="pill" color="primary" />
+      </div>
+    </div>
+
+    <!-- ANALYSIS VIEW -->
+    <div v-else>
+      <VRow>
+        <VCol cols="12" md="6">
+          <VCard rounded="xl" class="pa-6 border h-100">
+            <VCardTitle class="px-0 pt-0 font-weight-bold">Répartition par Type</VCardTitle>
+            <VTable>
+              <thead>
+                <tr>
+                  <th class="text-left">Type d'Aide</th>
+                  <th class="text-center">Attributions</th>
+                  <th class="text-right">Valeur (TND)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(data, type) in analysis.byType" :key="type">
+                  <td class="font-weight-bold">{{ type }}</td>
+                  <td class="text-center"><VChip size="x-small">{{ data.count }}</VChip></td>
+                  <td class="text-right font-weight-black">{{ data.value.toLocaleString() }}</td>
+                </tr>
+              </tbody>
+            </VTable>
+          </VCard>
+        </VCol>
+        <VCol cols="12" md="6">
+          <VCard rounded="xl" class="pa-6 border h-100 bg-primary text-white">
+            <VCardTitle class="px-0 pt-0 font-weight-bold">Impact Cumulé Mensuel</VCardTitle>
+            <div class="mt-4">
+              <div v-for="(val, month) in analysis.monthly" :key="month" class="mb-4">
+                <div class="d-flex justify-space-between mb-1">
+                  <span class="text-overline">{{ month }}</span>
+                  <span class="font-weight-bold">{{ val.toLocaleString() }} TND</span>
+                </div>
+                <VSheet height="6" rounded="pill" color="rgba(255,255,255,0.2)">
+                  <VSheet :width="(val / stats.totalValue * 200) + '%'" height="100%" color="white" rounded="pill" />
+                </VSheet>
+              </div>
+            </div>
+          </VCard>
+        </VCol>
+      </VRow>
+    </div>
+  </VContainer>
+</template>
+
 <style scoped>
-.page-container {
-  --ink: #0f172a;
-  --muted: #6b7280;
-  --brand: #0f766e;
-  background: linear-gradient(180deg, #f7f8fb 0%, #eef2f7 100%);
-  min-height: 100%;
-  padding: 28px;
-}
-.page-header { margin-bottom: 30px; }
-.eyebrow { text-transform: uppercase; letter-spacing: 0.12em; font-size: 12px; color: var(--muted); margin: 0 0 6px; }
-h2 { margin: 0; font-size: 26px; color: var(--ink); }
-.subtle { margin: 6px 0 0; color: var(--muted); }
-.table-card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 14px; box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08); }
-.table-wrap { overflow-x: auto; }
-.table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 600px; }
-.table th { text-align: left; padding: 14px 16px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #475569; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
-.table td { padding: 14px 16px; border-bottom: 1px solid #edf2f7; color: var(--ink); }
-.status-chip { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
-.is-valid { background: #dcfce7; color: #166534; }
-.is-pending { background: #fef3c7; color: #92400e; }
-.actions { display: flex; align-items: center; gap: 8px; }
-.btn { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
-.btn-primary { background: #0f766e; color: #fff; padding: 10px 20px; font-weight: 600; }
-.btn-warning { background: #f59e0b; color: #fff; }
-.btn-danger { background: #ef4444; color: #fff; }
-.btn-sm { padding: 6px 10px; font-size: 12px; }
-.btn:hover { filter: brightness(0.95); }
+.border-s-lg { border-left-width: 8px !important; }
+.shadow-premium { box-shadow: 0 4px 20px rgba(0,0,0,0.05) !important; }
+.hover-card:hover { transform: translateY(-4px); transition: 0.3s; border-color: var(--v-primary-base) !important; }
+.line-height-tight { line-height: 1.2; }
 </style>

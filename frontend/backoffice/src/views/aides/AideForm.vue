@@ -1,100 +1,218 @@
-<template>
-  <section class="page-container">
-    <header class="page-header">
-      <div>
-        <p class="eyebrow">Aides</p>
-        <h2>{{ isEdit ? 'Modifier Aide' : 'Nouvelle Aide' }}</h2>
-      </div>
-    </header>
-    <div class="form-card">
-      <form @submit.prevent="saveAide">
-        <div class="field-group">
-          <label class="field-label">Bénéficiaire</label>
-          <select class="field-input" v-model="form.beneficiary" required>
-            <option value="Famille Ben Ali">Famille Ben Ali</option>
-            <option value="Famille Trabelsi">Famille Trabelsi</option>
-            <option value="Famille Gueddafi">Famille Gueddafi</option>
-          </select>
-        </div>
-        <div class="field-group">
-          <label class="field-label">Type d'aide</label>
-          <select class="field-input" v-model="form.type" required>
-            <option value="Financière">Financière</option>
-            <option value="Alimentaire">Alimentaire</option>
-            <option value="Médicale">Médicale</option>
-            <option value="Matériel">Matériel</option>
-          </select>
-        </div>
-        <div class="field-group">
-          <label class="field-label">Montant / Description</label>
-          <input type="text" class="field-input" v-model="form.amount" required />
-        </div>
-        <div class="field-group">
-          <label class="field-label">Date</label>
-          <input type="date" class="field-input" v-model="form.date" required />
-        </div>
-        <div class="field-group">
-          <label class="field-label">Statut</label>
-          <select class="field-input" v-model="form.status" required>
-            <option value="En attente">En attente</option>
-            <option value="Validé">Validé</option>
-            <option value="Rejeté">Rejeté</option>
-          </select>
-        </div>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-success">Sauvegarder</button>
-          <router-link to="/aides" class="btn btn-secondary">Annuler</router-link>
-        </div>
-      </form>
-    </div>
-  </section>
-</template>
-
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { aides } from '@/data/aides';
-import type { Aide } from '@/types/aide';
+import { useAidStore } from '@/stores/aid.store';
+import { apiFetch } from '@/services/api';
+import {
+  VContainer,
+  VRow,
+  VCol,
+  VBtn,
+  VCard,
+  VCardTitle,
+  VCardText,
+  VCardActions,
+  VTextField,
+  VIcon,
+  VSelect,
+  VSpacer,
+  VAlert,
+  VDivider,
+} from 'vuetify/components';
 
+// -------------------- STORES --------------------
 const route = useRoute();
 const router = useRouter();
-const isEdit = ref(false);
-const form = ref<Aide>({ id: 0, beneficiary: '', type: 'Financière', amount: '', date: '', status: 'En attente' });
+const aidStore = useAidStore();
 
-onMounted(() => {
-  const id = Number(route.params.id);
-  if (id) {
+// -------------------- STATE --------------------
+const isEdit = ref(false);
+const loading = ref(false);
+const error = ref<string | null>(null);
+
+const form = ref({
+  id: '',
+  type: 'Alimentaire',
+  quantite: 1,
+  unite: 'Unité',
+  natureIntervention: 'Distribution',
+  valeurEstimee: 0,
+  visitId: null as string | null,
+});
+
+const aidTypes = ['Alimentaire', 'Médicale', 'Financière', 'Matériel', 'Soutien Psychologique'];
+const natureOptions = ['Distribution', 'Consultation', 'Support', 'Urgent'];
+const visits = ref<any[]>([]);
+
+// -------------------- FETCH DATA --------------------
+const loadVisits = async () => {
+    try {
+        const data = await apiFetch('/visits');
+        visits.value = data.map((v: any) => ({
+            id: v.id,
+            title: `Visite du ${new Date(v.date).toLocaleDateString()} - ${v.visitBeneficiaires?.map((vb: any) => vb.beneficiaire?.nomFamille || vb.beneficiaire?.firstName).join(', ')}`
+        }));
+    } catch (err: any) {
+        console.error('Error loading visits', err);
+    }
+};
+
+onMounted(async () => {
+  await loadVisits();
+  const id = route.params.id;
+  if (id && id !== 'new') {
     isEdit.value = true;
-    const found = aides.find(a => a.id === id);
-    if (found) form.value = { ...found };
-  } else {
-    form.value.id = Date.now();
+    loading.value = true;
+    try {
+      const aid = await apiFetch(`/visits/aids/${id}`);
+      form.value = {
+        id: aid.id,
+        type: aid.type,
+        quantite: aid.quantite,
+        unite: aid.unite,
+        natureIntervention: aid.natureIntervention,
+        valeurEstimee: aid.valeurEstimee,
+        visitId: aid.visitBeneficiaire?.visit?.id || null
+      };
+    } catch (err: any) {
+      error.value = 'Impossible de charger les détails de l\'aide.';
+    } finally {
+      loading.value = false;
+    }
   }
 });
 
-const saveAide = () => {
-  if (isEdit.value) {
-    const idx = aides.findIndex(a => a.id === form.value.id);
-    if (idx !== -1) aides[idx] = form.value;
-  } else {
-    aides.push(form.value);
+// -------------------- SAVE --------------------
+async function saveAide() {
+  if (!form.value.visitId || !form.value.type || !form.value.quantite) {
+    error.value = 'Veuillez remplir tous les champs obligatoires.';
+    return;
   }
-  router.push('/aides');
-};
+
+  loading.value = true;
+  error.value = null;
+  try {
+    if (isEdit.value) {
+      await aidStore.updateAid(form.value.id, form.value);
+    } else {
+      // Create aid attached to a visit
+      await aidStore.createAid(form.value.visitId, form.value);
+    }
+    router.push('/aides');
+  } catch (err: any) {
+    error.value = err.message || 'Erreur lors de la sauvegarde.';
+  } finally {
+    loading.value = false;
+  }
+}
 </script>
 
+<template>
+  <VContainer fluid class="pa-6">
+    <!-- HEADER -->
+    <VRow class="mb-6 align-center">
+      <VCol cols="12">
+        <v-btn variant="text" prepend-icon="mdi-arrow-left" to="/aides" class="mb-4">Retour</v-btn>
+        <p class="text-overline mb-1 text-primary font-weight-bold">Solidarité</p>
+        <h1 class="text-h3 font-weight-bold mb-2">{{ isEdit ? 'Modifier l\'aide' : 'Nouvelle aide' }}</h1>
+        <p class="text-body-1 text-grey-darken-1">Détaillez les ressources ou services apportés lors d'une visite.</p>
+      </VCol>
+    </VRow>
+
+    <VRow justify="center">
+      <VCol cols="12" md="8" lg="6">
+        <VCard rounded="xl" elevation="10" class="pa-6">
+          <VCardTitle class="px-0 pt-0 mb-6 font-weight-bold d-flex align-center">
+            <VIcon color="primary" class="mr-2">mdi-gift-outline</VIcon>
+            Détails de l'aide
+          </VCardTitle>
+
+          <VAlert v-if="error" type="error" variant="tonal" class="mb-6" closable>
+            {{ error }}
+          </VAlert>
+
+          <VRow>
+            <VCol cols="12">
+              <VSelect
+                v-model="form.visitId"
+                :items="visits"
+                item-title="title"
+                item-value="id"
+                label="Visite associée (Obligatoire)"
+                variant="outlined"
+                prepend-inner-icon="mdi-map-marker-path"
+                :disabled="isEdit"
+                placeholder="Sélectionner la visite correspondante"
+              />
+            </VCol>
+
+            <VCol cols="12" sm="6">
+              <VSelect
+                v-model="form.type"
+                :items="aidTypes"
+                label="Type d'aide"
+                variant="outlined"
+              />
+            </VCol>
+
+            <VCol cols="12" sm="6">
+              <VSelect
+                v-model="form.natureIntervention"
+                :items="natureOptions"
+                label="Nature de l'intervention"
+                variant="outlined"
+              />
+            </VCol>
+
+            <VCol cols="6">
+              <VTextField
+                v-model.number="form.quantite"
+                label="Quantité"
+                type="number"
+                variant="outlined"
+              />
+            </VCol>
+
+            <VCol cols="6">
+              <VTextField
+                v-model="form.unite"
+                label="Unité"
+                variant="outlined"
+                placeholder="Ex: Kg, Boites, TND..."
+              />
+            </VCol>
+
+            <VCol cols="12">
+              <VTextField
+                v-model.number="form.valeurEstimee"
+                label="Valeur estimée (TND)"
+                type="number"
+                variant="outlined"
+                prepend-inner-icon="mdi-currency-usd"
+              />
+            </VCol>
+          </VRow>
+
+          <VCardActions class="px-0 mt-6">
+            <VSpacer />
+            <VBtn variant="text" size="large" to="/aides">Annuler</VBtn>
+            <VBtn 
+              color="primary" 
+              variant="flat" 
+              size="large" 
+              rounded="lg" 
+              class="px-8 font-weight-bold" 
+              @click="saveAide" 
+              :loading="loading"
+            >
+              {{ isEdit ? 'Sauvegarder' : 'Enregistrer l\'aide' }}
+            </VBtn>
+          </VCardActions>
+        </VCard>
+      </VCol>
+    </VRow>
+  </VContainer>
+</template>
+
 <style scoped>
-.page-container { background: linear-gradient(180deg, #f7f8fb 0%, #eef2f7 100%); min-height: 100%; padding: 28px; }
-.page-header { margin-bottom: 24px; }
-.eyebrow { text-transform: uppercase; letter-spacing: 0.12em; font-size: 12px; color: #6b7280; margin: 0 0 6px; }
-h2 { margin: 0; font-size: 26px; color: #0f172a; }
-.form-card { background: #ffffff; padding: 32px; border-radius: 14px; box-shadow: 0 10px 28px rgba(15,23,42,0.08); max-width: 600px; }
-.field-group { margin-bottom: 20px; display: flex; flex-direction: column; }
-.field-label { font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 14px; }
-.field-input { padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; }
-.field-input:focus { outline: none; border-color: #0f766e; box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1); }
-.form-actions { display: flex; gap: 12px; margin-top: 24px; }
-.btn { padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
-.btn-success { background: #0f766e; color: #fff; }
-.btn-secondary { background: #fff; border: 1px solid #d1d5db; color: #374151; }
 </style>

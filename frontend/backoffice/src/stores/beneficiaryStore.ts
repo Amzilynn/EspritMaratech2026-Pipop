@@ -59,11 +59,43 @@ export const useBeneficiaryStore = defineStore('beneficiary', () => {
         }
     }
 
+    async function updateBeneficiary(id: string, data: any) {
+        isLoading.value = true;
+        try {
+            const updated = await apiFetch(`/beneficiaires/${id}`, {
+                method: 'PATCH',
+                body: JSON.stringify(data)
+            });
+            await fetchBeneficiaries();
+            return updated;
+        } catch (err: any) {
+            error.value = err.message;
+            throw err;
+        } finally {
+            isLoading.value = false;
+        }
+    }
+
+    async function deleteBeneficiary(id: string) {
+        isLoading.value = true;
+        try {
+            await apiFetch(`/beneficiaires/${id}`, { method: 'DELETE' });
+            await fetchBeneficiaries();
+        } catch (err: any) {
+            error.value = err.message;
+            throw err;
+        } finally {
+            isLoading.value = false;
+        }
+    }
+
     return {
         beneficiaries,
         isLoading,
         error,
         fetchBeneficiaries,
-        createBeneficiary
+        createBeneficiary,
+        updateBeneficiary,
+        deleteBeneficiary
     };
 });

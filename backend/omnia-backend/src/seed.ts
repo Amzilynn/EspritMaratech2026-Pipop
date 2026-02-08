@@ -19,12 +19,43 @@ const AppDataSource = new DataSource({
     password: process.env.DB_PASSWORD || '0000',
     database: process.env.DB_NAME || 'omnia_db',
     entities: [User, Role, Beneficiaire, Visit, VisitBeneficiaire, Aid, Audit],
-    synchronize: false,
+    synchronize: true,
 });
+
+const randomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+const randomChoice = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+const randomDate = (start: Date, end: Date) => new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+
+const GOVERNORATES = [
+    { name: 'Tunis', lat: 36.8065, lng: 10.1815 },
+    { name: 'Ariana', lat: 36.8625, lng: 10.1956 },
+    { name: 'Ben Arous', lat: 36.7531, lng: 10.2222 },
+    { name: 'Manouba', lat: 36.8078, lng: 10.0864 },
+    { name: 'Nabeul', lat: 36.4561, lng: 10.7339 },
+    { name: 'Zaghouan', lat: 36.4029, lng: 10.1429 },
+    { name: 'Bizerte', lat: 37.2744, lng: 9.8739 },
+    { name: 'Béja', lat: 36.7256, lng: 9.1817 },
+    { name: 'Jendouba', lat: 36.5011, lng: 8.7794 },
+    { name: 'Le Kef', lat: 36.1742, lng: 8.7049 },
+    { name: 'Siliana', lat: 36.084, lng: 9.370 },
+    { name: 'Kairouan', lat: 35.6781, lng: 10.0963 },
+    { name: 'Kassérine', lat: 35.1672, lng: 8.8319 },
+    { name: 'Sidi Bouzid', lat: 35.0382, lng: 9.4858 },
+    { name: 'Sousse', lat: 35.8256, lng: 10.637 },
+    { name: 'Monastir', lat: 35.778, lng: 10.8262 },
+    { name: 'Mahdia', lat: 35.5047, lng: 11.0622 },
+    { name: 'Sfax', lat: 34.7406, lng: 10.7603 },
+    { name: 'Gafsa', lat: 34.425, lng: 8.7842 },
+    { name: 'Tozeur', lat: 33.9197, lng: 8.1336 },
+    { name: 'Kebili', lat: 33.7044, lng: 8.969 },
+    { name: 'Gabès', lat: 33.8815, lng: 10.0982 },
+    { name: 'Médenine', lat: 33.3549, lng: 10.5055 },
+    { name: 'Tataouine', lat: 32.9297, lng: 10.4518 }
+];
 
 async function seed() {
     await AppDataSource.initialize();
-    console.log('Data Source initialized!');
+    console.log('🌍 --- TUNISIA FULL COVERAGE SEEDING (300+ Families) ---');
 
     const roleRepo = AppDataSource.getRepository(Role);
     const userRepo = AppDataSource.getRepository(User);
@@ -33,141 +64,125 @@ async function seed() {
     const vbRepo = AppDataSource.getRepository(VisitBeneficiaire);
     const aidRepo = AppDataSource.getRepository(Aid);
 
-    // 1. Seed Roles
+    // 0. CLEANUP
+    try {
+        await aidRepo.query('TRUNCATE TABLE "aids", "visit_beneficiaires", "visits", "beneficiaires" RESTART IDENTITY CASCADE');
+        await userRepo.query('TRUNCATE TABLE "users", "roles" RESTART IDENTITY CASCADE');
+    } catch (e) {
+        await aidRepo.delete({}); await vbRepo.delete({}); await visitRepo.delete({});
+        await beneRepo.delete({}); await userRepo.delete({}); await roleRepo.delete({});
+    }
+
+    // 1. ROLES
     const roles = ['ADMIN', 'RESPONSABLE_TERRAIN', 'BENEVOLE'];
     const savedRoles: Record<string, Role> = {};
     for (const name of roles) {
-        let role = await roleRepo.findOne({ where: { name } });
-        if (!role) {
-            role = roleRepo.create({ name });
-            role = await roleRepo.save(role);
-        }
-        savedRoles[name] = role;
+        savedRoles[name] = await roleRepo.save(roleRepo.create({ name }));
     }
-    console.log('Roles seeded.');
 
-    // 2. Seed Users
+    // 2. USERS
     const password = await bcrypt.hash('password123', 10);
-    const usersData = [
-        { email: 'admin@omnia.tn', firstName: 'Mehdi', lastName: 'Admin', role: savedRoles['ADMIN'] },
-        { email: 'manager@omnia.tn', firstName: 'Sonia', lastName: 'Manager', role: savedRoles['RESPONSABLE_TERRAIN'] },
-        { email: 'volunteer@omnia.tn', firstName: 'Ahmed', lastName: 'Benevole', role: savedRoles['BENEVOLE'] },
-    ];
+    const admin = await userRepo.save(userRepo.create({ email: 'admin@omnia.tn', firstName: 'Mehdi', lastName: 'Zoghlami', password, role: savedRoles['ADMIN'] }));
 
-    const savedUsers: User[] = [];
-    for (const u of usersData) {
-        let user = await userRepo.findOne({ where: { email: u.email } });
-        if (!user) {
-            user = userRepo.create({ ...u, password });
-            user = await userRepo.save(user);
-        }
-        savedUsers.push(user);
+    // Create one manager and one volunteer per region group? No, just enough for the app.
+    const savedManagers: User[] = [];
+    for (let i = 0; i < 5; i++) {
+        savedManagers.push(await userRepo.save(userRepo.create({
+            email: `manager${i}@omnia.tn`,
+            firstName: `Responsable`,
+            lastName: `${i}`,
+            password,
+            role: savedRoles['RESPONSABLE_TERRAIN']
+        })));
     }
-    console.log('Users seeded.');
 
-    // 3. Seed Beneficiaries (Tunis area)
-    const families = [
-        {
-            codeFamille: 'FAM-001',
-            nomFamille: 'Ben Ali',
-            telephone: '21698123456',
-            adresse: 'Lafayette, Tunis',
-            latitude: 36.8124,
-            longitude: 10.1789,
-            nbMembres: 5,
-            nbEnfants: 3,
-            nbPersonnesAgees: 1,
-            revenuMensuel: 450.5,
-            typeLogement: 'Locataire',
-            statutSocial: 'Précaire',
-            situationSociale: 'Single mother with 3 school-age children and an elderly parent.',
-        },
-        {
-            codeFamille: 'FAM-002',
-            nomFamille: 'Trabelsi',
-            telephone: '21697234567',
-            adresse: 'Mellassine, Tunis',
-            latitude: 36.7912,
-            longitude: 10.1543,
-            nbMembres: 4,
-            nbEnfants: 2,
-            nbHandicapes: 1,
-            revenuMensuel: 300,
-            typeLogement: 'Précaire',
-            statutSocial: 'Chômage',
-            situationSociale: 'Father unemployed, one child with physical disability.',
-        },
-        {
-            codeFamille: 'FAM-003',
-            nomFamille: 'Gharbi',
-            telephone: '21695345678',
-            adresse: 'Cité Ibn Khaldoun, Tunis',
-            latitude: 36.8321,
-            longitude: 10.1654,
-            nbMembres: 6,
-            nbEnfants: 4,
-            nbPersonnesAgees: 0,
-            revenuMensuel: 600,
-            typeLogement: 'Locataire',
-            statutSocial: 'Ouvrier',
-            situationSociale: 'Large family, father works as manual laborer.',
-        }
-    ];
+    const savedVolunteers: User[] = [];
+    for (let i = 0; i < 20; i++) {
+        savedVolunteers.push(await userRepo.save(userRepo.create({
+            email: `benevole${i}@omnia.tn`,
+            firstName: `Bénévole`,
+            lastName: `${i}`,
+            password,
+            role: savedRoles['BENEVOLE'],
+            responsable: savedManagers[i % 5]
+        })));
+    }
 
+    // 3. BENEFICIARIES (300 Families across 24 Regions)
+    console.log('Generating 300 families distributed across all 24 governorates...');
     const savedFamilies: Beneficiaire[] = [];
-    for (const f of families) {
-        let bene = await beneRepo.findOne({ where: { codeFamille: f.codeFamille } });
-        if (!bene) {
-            bene = beneRepo.create(f);
-            bene = await beneRepo.save(bene);
+
+    // Distribute equally
+    for (const gov of GOVERNORATES) {
+        const familiesInThisGov = randomInt(10, 15);
+        for (let i = 0; i < familiesInThisGov; i++) {
+            const members = randomInt(1, 9);
+            savedFamilies.push(await beneRepo.save(beneRepo.create({
+                codeFamille: `FAM-${gov.name.substring(0, 3).toUpperCase()}-${String(i + 1).padStart(2, '0')}`,
+                nomFamille: `Citoyen ${gov.name}`,
+                adresse: `${gov.name}, Secteur ${randomInt(1, 10)}`,
+                latitude: gov.lat + (Math.random() - 0.5) * 0.1, // Wider spread
+                longitude: gov.lng + (Math.random() - 0.5) * 0.1,
+                telephone: `216${randomInt(10000000, 99999999)}`,
+                nbMembres: members,
+                nbEnfants: Math.max(0, members - randomInt(1, 3)),
+                nbPersonnesAgees: randomChoice([0, 1, 2]),
+                nbHandicapes: randomChoice([0, 0, 1]),
+                revenuMensuel: randomChoice([0, 200, 450, 600]),
+                typeLogement: randomChoice(['Précaire', 'Locataire', 'Propriétaire']),
+                statutSocial: randomChoice(['Chômage', 'Handicap', 'Ouvrier']),
+                active: true,
+            })));
         }
-        savedFamilies.push(bene);
     }
-    console.log('Beneficiaries seeded.');
 
-    // 4. Seed a Visit
-    const visit = visitRepo.create({
-        notes: 'Distribution of winter kits and medical consultation.',
-        user: savedUsers[2], // Ahmed (Volunteer)
-    });
-    const savedVisit = await visitRepo.save(visit);
+    // 4. HISTORICAL VISITS
+    console.log('Seeding 1000+ historical records...');
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - 8);
 
-    // Link families to visit and add aids
-    for (const family of savedFamilies) {
-        const vb = vbRepo.create({
-            visit: savedVisit,
-            beneficiaire: family,
+    for (const fam of savedFamilies) {
+        const vCount = (fam.nbHandicapes > 0 || fam.revenuMensuel < 200) ? randomInt(4, 12) : randomInt(1, 3);
+        for (let j = 0; j < vCount; j++) {
+            const date = randomDate(startDate, new Date());
+            const visit = await visitRepo.save(visitRepo.create({
+                date,
+                notes: `Suivi routinier à ${fam.adresse}.`,
+                user: randomChoice(savedVolunteers)
+            }));
+            const vb = await vbRepo.save(vbRepo.create({ visit, beneficiaire: fam }));
+
+            if (Math.random() > 0.5) {
+                await aidRepo.save(aidRepo.create({
+                    type: randomChoice(['Alimentaire', 'Santé', 'Financier']),
+                    natureIntervention: 'Distribution',
+                    quantite: 1,
+                    unite: 'Unité',
+                    valeurEstimee: randomInt(50, 300),
+                    visitBeneficiaire: vb,
+                    dateDistribution: date
+                }));
+            }
+        }
+    }
+
+    // 5. ML SCORING
+    for (const fam of savedFamilies) {
+        let score = 10 + (fam.nbMembres * 5) + (fam.nbHandicapes * 30);
+        if (fam.revenuMensuel < 300) score += 40;
+        score = Math.min(99, score + (Math.random() * 10 - 5));
+
+        await beneRepo.update(fam.id, {
+            vulnerabilityScore: score,
+            economicFactor: randomInt(10, 40),
+            socialFactor: randomInt(10, 40),
+            urgencyFactor: randomInt(0, 10),
+            scoreLastUpdated: new Date()
         });
-        const savedVb = await vbRepo.save(vb);
-
-        // Add specific aids for each family
-        if (family.codeFamille === 'FAM-001') {
-            await aidRepo.save(aidRepo.create({
-                type: 'Colis Alimentaire',
-                natureIntervention: 'Distribution',
-                quantite: 1,
-                unite: 'Carton',
-                valeurEstimee: 80,
-                visitBeneficiaire: savedVb,
-            }));
-        } else if (family.codeFamille === 'FAM-002') {
-            await aidRepo.save(aidRepo.create({
-                type: 'Médicaments',
-                natureIntervention: 'Consultation',
-                quantite: 2,
-                unite: 'Boites',
-                valeurEstimee: 45,
-                visitBeneficiaire: savedVb,
-            }));
-        }
     }
-    console.log('Visits and Aids seeded.');
 
     await AppDataSource.destroy();
-    console.log('Seeding complete!');
+    console.log('✅ SEEDING COMPLETE! Tunisia is now fully covered with humanitarian data.');
 }
 
-seed().catch((err) => {
-    console.error('Error during seeding:', err);
-    process.exit(1);
-});
+seed().catch(err => { console.error(err); process.exit(1); });

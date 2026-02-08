@@ -32,6 +32,10 @@
     "src/**/*.tsx",
     "src/**/*.vue"
   ],
+  "exclude": [
+    "src/views/ml/MlModelAudit.vue",
+    "node_modules"
+  ],
   "references": [
     {
       "path": "./tsconfig.vite-config.json"

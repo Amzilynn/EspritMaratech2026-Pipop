@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { apiFetch } from '@/services/api';
+import { useUserStore } from '@/stores/user.store';
 import {
   VContainer,
   VRow,
@@ -13,20 +13,17 @@ import {
   VTextField,
   VAvatar,
   VIcon,
-  VChip,
   VDialog,
-  VSelect,
   VSpacer,
   VToolbar,
   VAlert,
 } from 'vuetify/components';
 
-// -------------------- STATE --------------------
-const isLoading = ref(false);
-const users = ref<any[]>([]);
-const responsables = ref<any[]>([]);
-const search = ref('');
+// -------------------- STORE --------------------
+const userStore = useUserStore();
 
+// -------------------- STATE --------------------
+const search = ref('');
 const dialog = ref(false);
 const deleteDialog = ref(false);
 const userToDelete = ref<any>(null);
@@ -36,38 +33,35 @@ const formError = ref('');
 
 // -------------------- FORM --------------------
 const initialForm = {
-  id: null,
+  id: undefined as number | undefined,
   firstName: '',
   lastName: '',
   email: '',
   password: '',
-  roleName: 'BENEVOLE',
-  responsableId: null,
+  roleName: 'RESPONSABLE_TERRAIN', // Default role for this view
 };
 const form = ref({ ...initialForm });
 
-// -------------------- FETCH USERS --------------------
-async function fetchData() {
-  isLoading.value = true;
-  try {
-    const data = await apiFetch('/users');
-    users.value = data.filter((u: any) => u.role?.name === 'BENEVOLE');
-    responsables.value = data.filter(
-      (u: any) => u.role?.name === 'RESPONSABLE_TERRAIN' || u.role?.name === 'ADMIN'
-    );
-  } catch (err: any) {
-    console.error('Failed to fetch data:', err);
-  } finally {
-    isLoading.value = false;
-  }
-}
+// -------------------- FETCH DATA --------------------
+onMounted(async () => {
+  await userStore.fetchAllUsers();
+});
 
-// -------------------- FILTERED USERS --------------------
+// -------------------- COMPUTED --------------------
+// Get only Responsables
+const responsablesList = computed(() => 
+  userStore.allUsers.filter((u: any) => 
+    u.role?.name === 'RESPONSABLE_TERRAIN' || u.role?.name === 'RESPONSABLE'
+  )
+);
+
 const filteredUsers = computed(() =>
-  users.value.filter(u =>
+  responsablesList.value.filter((u: any) =>
     `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(search.value.toLowerCase())
   )
 );
+
+const isLoading = computed(() => userStore.loading);
 
 // -------------------- DIALOGS --------------------
 function openAddDialog() {
@@ -85,69 +79,40 @@ function editUser(user: any) {
     lastName: user.lastName,
     email: user.email,
     password: '',
-    roleName: 'BENEVOLE',
-    responsableId: user.responsable?.id || null,
+    roleName: 'RESPONSABLE_TERRAIN',
   };
   formError.value = '';
   dialog.value = true;
 }
 
-// -------------------- VALIDATION --------------------
-function validateForm() {
+// -------------------- SAVE --------------------
+async function saveUser() {
+  formError.value = '';
   if (!form.value.firstName || !form.value.lastName || !form.value.email) {
-    formError.value = 'Prénom, Nom et Email sont obligatoires.';
-    return false;
+    formError.value = 'Tous les champs sont obligatoires.';
+    return;
   }
   if (!isEdit.value && !form.value.password) {
-    formError.value = 'Le mot de passe est obligatoire pour la création.';
-    return false;
+    formError.value = 'Mot de passe obligatoire.';
+    return;
   }
-  return true;
-}
-
-// -------------------- SAVE / UPDATE --------------------
-async function saveUser() {
-  if (!validateForm()) return;
 
   formLoading.value = true;
-  formError.value = '';
   try {
     if (isEdit.value) {
-      const { id, password, ...updateData } = form.value;
-      const payload = password ? { ...updateData, password } : updateData;
-
-      await apiFetch(`/users/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      // Update in-place
-      const index = users.value.findIndex(u => u.id === id);
-      if (index !== -1) {
-        users.value[index] = {
-          ...users.value[index],
-          ...updateData,
-          responsable:
-            responsables.value.find(r => r.id === updateData.responsableId) || null,
-        };
-      }
+      // Update
+      const { id, password, ...rest } = form.value;
+      const payload = password ? { ...rest, password } : rest;
+      await userStore.updateUser(id!, payload);
     } else {
-      const newUser = await apiFetch('/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form.value),
-      });
-      newUser.responsable =
-        responsables.value.find(r => r.id === newUser.responsableId) || null;
-      users.value.push(newUser);
+      // Create
+      await userStore.createUser(form.value);
     }
     dialog.value = false;
+    // Refresh list is automatic via store reactivity
+    await userStore.fetchAllUsers(); // Optional refresh to be sure
   } catch (err: any) {
-    formError.value =
-      err.message ||
-      (err.response?.data?.message as string) ||
-      'Une erreur est survenue sur le serveur.';
+    formError.value = err.message || 'Erreur lors de la sauvegarde.';
   } finally {
     formLoading.value = false;
   }
@@ -162,21 +127,12 @@ function confirmDelete(user: any) {
 async function deleteUser() {
   if (!userToDelete.value) return;
   try {
-    // No JSON parsing to avoid errors
-    await fetch(`/users/${userToDelete.value.id}`, { method: 'DELETE' });
-    users.value = users.value.filter(u => u.id !== userToDelete.value.id);
+    await userStore.deleteUser(userToDelete.value.id);
     deleteDialog.value = false;
   } catch (err: any) {
-    alert(
-      err.message ||
-        (err.response?.data?.message as string) ||
-        'Erreur lors de la suppression.'
-    );
+    alert(err.message || 'Erreur lors de la suppression.');
   }
 }
-
-// -------------------- MOUNT --------------------
-onMounted(fetchData);
 </script>
 
 <template>
@@ -184,13 +140,21 @@ onMounted(fetchData);
     <!-- HEADER -->
     <VRow class="mb-6 align-center">
       <VCol cols="12" sm="8">
-        <p class="text-overline mb-1 text-primary font-weight-bold">Coopération</p>
-        <h1 class="text-h3 font-weight-bold mb-2">Bénévoles</h1>
-        <p class="text-body-1 text-grey-darken-1">Gérer les membres actifs et leurs responsables de terrain.</p>
+        <p class="text-overline mb-1 text-primary font-weight-bold">Administration</p>
+        <h1 class="text-h3 font-weight-bold mb-2">Responsables Terrain</h1>
+        <p class="text-body-1 text-grey-darken-1">Gérer les superviseurs des équipes de bénévoles.</p>
       </VCol>
       <VCol cols="12" sm="4" class="text-right">
-        <VBtn color="primary" prepend-icon="mdi-account-plus" size="large" rounded="lg" elevation="4" @click="openAddDialog">
-          Nouveau Bénévole
+        <VBtn 
+          color="primary" 
+          prepend-icon="mdi-account-plus" 
+          size="large" 
+          rounded="lg" 
+          elevation="4" 
+          @click="openAddDialog"
+          aria-label="Ajouter un nouveau responsable"
+        >
+          Nouveau Responsable
         </VBtn>
       </VCol>
     </VRow>
@@ -200,13 +164,14 @@ onMounted(fetchData);
       <VTextField
         v-model="search"
         prepend-inner-icon="mdi-magnify"
-        placeholder="Chercher un bénévole..."
+        placeholder="Chercher un responsable..."
         hide-details
         density="compact"
         variant="solo-filled"
         rounded="pill"
         flat
         style="max-width: 400px"
+        aria-label="Recherche responsable"
       />
       <VSpacer />
     </VToolbar>
@@ -214,37 +179,49 @@ onMounted(fetchData);
     <!-- TABLE -->
     <VCard rounded="xl" elevation="10" class="overflow-x-auto">
       <v-simple-table>
-        <thead>
+        <thead class="bg-grey-lighten-4">
           <tr>
-            <th>Bénévole</th>
-            <th>Email</th>
-            <th>Responsable Assigné</th>
-            <th>Actions</th>
+            <th class="text-left py-3 px-4">Responsable</th>
+            <th class="text-left py-3 px-4">Email</th>
+            <th class="text-right py-3 px-4">Actions</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="user in filteredUsers" :key="user.id">
-            <td class="d-flex align-center">
-              <VAvatar color="lightprimary" size="36" class="mr-2">
-                <span class="text-primary font-weight-bold">{{ user.firstName[0] }}{{ user.lastName[0] }}</span>
+          <tr v-if="isLoading">
+            <td colspan="3" class="text-center pa-4">Chargement...</td>
+          </tr>
+          <tr v-else-if="filteredUsers.length === 0">
+            <td colspan="3" class="text-center pa-4 text-grey">Aucun responsable trouvé.</td>
+          </tr>
+          <tr v-for="user in filteredUsers" :key="user.id" class="hover-row">
+            <td class="d-flex align-center py-3 px-4">
+              <VAvatar color="primary" variant="tonal" size="40" class="mr-3">
+                <span class="font-weight-bold">{{ user.firstName?.[0] }}{{ user.lastName?.[0] }}</span>
               </VAvatar>
-              {{ user.firstName }} {{ user.lastName }}
-            </td>
-            <td>{{ user.email }}</td>
-            <td>
-              <div v-if="user.responsable" class="d-flex align-center">
-                <VIcon size="18" color="grey" class="mr-1">mdi-shield-account</VIcon>
-                {{ user.responsable.firstName }} {{ user.responsable.lastName }}
+              <div>
+                <div class="font-weight-bold">{{ user.firstName }} {{ user.lastName }}</div>
               </div>
-              <VChip v-else size="x-small" color="grey-lighten-2" variant="flat" class="text-grey">
-                Non assigné
-              </VChip>
             </td>
-            <td class="d-flex gap-2">
-              <VBtn icon color="primary" size="small" @click="editUser(user)">
+            <td class="py-3 px-4 text-body-2">{{ user.email }}</td>
+            <td class="d-flex justify-end align-center gap-2 py-3 px-4">
+              <VBtn 
+                icon 
+                variant="text" 
+                color="primary" 
+                size="small" 
+                @click="editUser(user)"
+                aria-label="Modifier ce responsable"
+              >
                 <VIcon>mdi-pencil-outline</VIcon>
               </VBtn>
-              <VBtn icon color="error" size="small" @click="confirmDelete(user)">
+              <VBtn 
+                icon 
+                variant="text" 
+                color="error" 
+                size="small" 
+                @click="confirmDelete(user)"
+                aria-label="Supprimer ce responsable"
+              >
                 <VIcon>mdi-delete-outline</VIcon>
               </VBtn>
             </td>
@@ -253,17 +230,15 @@ onMounted(fetchData);
       </v-simple-table>
     </VCard>
 
-    <!-- ADD / EDIT DIALOG -->
+    <!-- DIALOGS -->
     <VDialog v-model="dialog" max-width="500px" persistent>
       <VCard rounded="xl" class="pa-4">
         <VCardTitle class="text-h5 font-weight-bold d-flex align-center">
-          <VIcon color="primary" class="mr-2">mdi-account-heart</VIcon>
-          {{ isEdit ? 'Gérer le Bénévole' : 'Inscrire un Bénévole' }}
+          <VIcon color="primary" class="mr-2">mdi-account-tie</VIcon>
+          {{ isEdit ? 'Modifier Responsable' : 'Nouveau Responsable' }}
         </VCardTitle>
         <VCardText class="mt-4">
-          <VAlert v-if="formError" type="error" variant="tonal" class="mb-4" closable>
-            {{ formError }}
-          </VAlert>
+          <VAlert v-if="formError" type="error" variant="tonal" class="mb-4" closable>{{ formError }}</VAlert>
           <VRow>
             <VCol cols="6">
               <VTextField v-model="form.firstName" label="Prénom" variant="outlined" density="comfortable" />
@@ -281,20 +256,7 @@ onMounted(fetchData);
                 type="password"
                 variant="outlined"
                 density="comfortable"
-                :placeholder="isEdit ? 'Laisser vide pour ne pas changer' : ''"
-              />
-            </VCol>
-            <VCol cols="12">
-              <VSelect
-                v-model="form.responsableId"
-                :items="responsables"
-                item-value="id"
-                :item-props="(item: any) => ({ title: `${item.firstName} ${item.lastName}`, subtitle: item.email })"
-                label="Responsable de Terrain"
-                variant="outlined"
-                density="comfortable"
-                prepend-inner-icon="mdi-account-tie"
-                clearable
+                :placeholder="isEdit ? 'Laisser vide pour conserver' : ''"
               />
             </VCol>
           </VRow>
@@ -302,8 +264,8 @@ onMounted(fetchData);
         <VCardActions class="px-6 pb-6">
           <VSpacer />
           <VBtn variant="text" @click="dialog = false">Annuler</VBtn>
-          <VBtn color="primary" variant="flat" rounded="lg" class="px-8" @click="saveUser" :loading="formLoading">
-            {{ isEdit ? 'Sauvegarder' : 'Confirmer' }}
+          <VBtn color="primary" variant="flat" rounded="lg" @click="saveUser" :loading="formLoading">
+            {{ isEdit ? 'Sauvegarder' : 'Créer' }}
           </VBtn>
         </VCardActions>
       </VCard>
@@ -312,14 +274,14 @@ onMounted(fetchData);
     <!-- DELETE DIALOG -->
     <VDialog v-model="deleteDialog" max-width="400px">
       <VCard rounded="xl" class="pa-4 text-center">
-        <VIcon color="error" size="64" class="mb-4">mdi-account-remove-outline</VIcon>
-        <h3 class="text-h5 font-weight-bold mb-2">Retirer ce membre ?</h3>
+        <VIcon color="error" size="64" class="mb-4">mdi-alert-circle-outline</VIcon>
+        <h3 class="text-h5 font-weight-bold mb-2">Confirmer la suppression ?</h3>
         <p class="text-body-1 text-grey-darken-1 mb-6">
-          Cette action désactivera le compte de <strong>{{ userToDelete?.firstName }} {{ userToDelete?.lastName }}</strong>.
+          Action irréversible pour <strong>{{ userToDelete?.firstName }} {{ userToDelete?.lastName }}</strong>.
         </p>
         <div class="d-flex justify-center gap-4">
           <VBtn variant="text" @click="deleteDialog = false">Annuler</VBtn>
-          <VBtn color="error" variant="flat" rounded="lg" class="px-8" @click="deleteUser">Supprimer</VBtn>
+          <VBtn color="error" variant="flat" rounded="lg" @click="deleteUser">Supprimer</VBtn>
         </div>
       </VCard>
     </VDialog>
@@ -328,8 +290,7 @@ onMounted(fetchData);
 
 <style scoped>
 .border-b { border-bottom: 1px solid rgba(0,0,0,0.05) !important; }
-.mr-1 { margin-right: 4px; }
-.mr-2 { margin-right: 8px; }
 .gap-2 { gap: 8px; }
 .overflow-x-auto { overflow-x: auto; }
+.hover-row:hover { background-color: rgba(0,0,0,0.02); }
 </style>

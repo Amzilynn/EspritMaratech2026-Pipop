@@ -1,297 +1,336 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
+import { useUserStore } from '@/stores/user.store';
 import { useTheme } from 'vuetify';
-import BeneficiaryStats from '@/components/dashboards/BeneficiaryStats.vue';
-import VisitsChart from '@/components/dashboards/VisitsChart.vue';
-import RecentActivity from '@/components/dashboards/RecentActivity.vue';
 import { apiFetch } from '@/services/api';
 
+// UI Components
+import {
+    VContainer, VRow, VCol, VCard, VCardText, VCardTitle, 
+    VAvatar, VIcon, VChip, VProgressCircular, VTable, VBtn,
+    VDivider, VSheet
+} from 'vuetify/components';
+
 const authStore = useAuthStore();
+const userStore = useUserStore();
 const theme = useTheme();
-const role = computed(() => authStore.role);
+
+// Metrics State
+const metrics = ref({
+    stats: {
+        families: 0,
+        visits: 0,
+        aidsValue: 0,
+        volunteers: 0,
+        responsables: 0,
+    },
+    topFamilies: [] as any[],
+    volunteersActivity: [] as any[],
+    vulnerabilityBuckets: [0, 0, 0, 0, 0], // [0-20, 20-40, 40-60, 60-80, 80-100]
+    aidMix: [] as any[],
+    overdueVisits: 0
+});
+
+const isLoading = ref(true);
 
 // Colors
 const primary = theme.current.value.colors.primary;
 const error = theme.current.value.colors.error;
 const warning = theme.current.value.colors.warning;
 const info = theme.current.value.colors.info;
-const secondary = theme.current.value.colors.secondary;
+const success = theme.current.value.colors.success;
 
-// Stats Data
-const stats = ref({
-    families: 0,
-    visits: 0,
-    aids: 0,
-    volunteers: 0
-});
-
-const isLoading = ref(true);
-
-// Priority / Heatmap Data
-const highRiskBeneficiaries = ref<any[]>([]);
-
-// Chart Options
-const chartOptions = computed(() => {
-    return {
-        series: [45, 15, 27, 18], // TODO: Make dynamic based on stats
-        labels: ['Précaire', 'Nécessiteux', 'Orphelin', 'Handicap'],
-        chart: {
-            type: 'donut',
-            fontFamily: 'inherit',
-            height: 300,
-        },
-        dataLabels: { enabled: false },
-        plotOptions: {
-            pie: {
-                donut: {
-                    size: '70%',
-                    labels: {
-                        show: true,
-                        name: { show: true, fontSize: '14px', color: 'inherit' },
-                        value: { show: true, fontSize: '20px', fontWeight: 'bold' },
-                        total: { show: true, label: 'Total', color: 'inherit' }
-                    }
-                }
-            }
-        },
-        stroke: { show: false },
-        colors: [primary, error, warning, info],
-        legend: { position: 'bottom', horizontalAlign: 'center' },
-        tooltip: { theme: 'light', fillSeriesColor: false },
-    };
-});
-
-// Fetch Real Data
-async function fetchHomeStats() {
+// -------------------- DATA FETCHING --------------------
+async function loadDashboardData() {
     isLoading.value = true;
     try {
-        console.log('Fetching dashboard stats...');
-        // Parallel data fetching for performance
         const [families, visits, aids, users] = await Promise.all([
             apiFetch('/beneficiaires').catch(() => []),
             apiFetch('/visits').catch(() => []), 
-            apiFetch('/aides').catch(() => []),
+            apiFetch('/visits/aids/all').catch(() => []),
             apiFetch('/users').catch(() => [])
         ]);
 
-        stats.value = {
+        // 1. Basic Stats
+        metrics.value.stats = {
             families: families.length,
             visits: visits.length,
-            aids: aids.length,
-            volunteers: users.filter((u: any) => u.role?.name === 'BENEVOLE').length
+            aidsValue: aids.reduce((acc: number, a: any) => acc + (Number(a.valeurEstimee) || 0), 0),
+            volunteers: users.filter((u: any) => u.role?.name === 'BENEVOLE').length,
+            responsables: users.filter((u: any) => u.role?.name === 'RESPONSABLE_TERRAIN').length,
         };
 
-        // Filter for High Risk Heatmap (Score > 0 for demo, ideally > 70)
-        highRiskBeneficiaries.value = families
-            .filter((f: any) => (f.vulnerabilityScore || 0) > 0)
+        // 2. High Risk Top 5
+        metrics.value.topFamilies = families
             .sort((a: any, b: any) => (b.vulnerabilityScore || 0) - (a.vulnerabilityScore || 0))
-            .slice(0, 8);
-            
-        console.log('Stats loaded:', stats.value);
+            .slice(0, 5);
+
+        // 3. Vulnerability Buckets
+        const buckets = [0, 0, 0, 0, 0];
+        families.forEach((f: any) => {
+            const s = f.vulnerabilityScore || 0;
+            if (s < 20) buckets[0]++;
+            else if (s < 40) buckets[1]++;
+            else if (s < 60) buckets[2]++;
+            else if (s < 80) buckets[3]++;
+            else buckets[4]++;
+        });
+        metrics.value.vulnerabilityBuckets = buckets;
+
+        // 4. Volunteers Activity Simulation (Grouped by name)
+        // In a real API this would be a specific aggregate endpoint
+        const volMap: Record<string, { visits: number, name: string, id: number }> = {};
+        visits.forEach((v: any) => {
+            const name = v.visitorName || 'Bénévole';
+            if (!volMap[name]) volMap[name] = { visits: 0, name, id: v.user?.id };
+            volMap[name].visits++;
+        });
+        metrics.value.volunteersActivity = Object.values(volMap).sort((a, b) => b.visits - a.visits).slice(0, 5);
+
+        // 5. Overdue visits simulation (families with no visits in 3+ months)
+        const threeMonthsAgo = new Date();
+        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+        metrics.value.overdueVisits = families.filter((f: any) => {
+            return !f.lastVisitDate || new Date(f.lastVisitDate) < threeMonthsAgo;
+        }).length;
+
     } catch (err) {
-        console.error('Dashboard stats error:', err);
+        console.error('Error fetching dashboard metrics:', err);
     } finally {
         isLoading.value = false;
     }
 }
 
-onMounted(fetchHomeStats);
+onMounted(loadDashboardData);
 
-// Quick Links Configuration
-const responsableCards = [
-    { title: 'Bénévoles', desc: 'Gérer les équipes.', icon: 'mdi-account-heart', to: '/benevoles', color: 'primary' },
-    { title: 'Responsables', desc: 'Gestion encadrants.', icon: 'mdi-account-tie', to: '/responsables', color: 'error' },
-    { title: 'Familles', desc: 'Bénéficiaires.', icon: 'mdi-heart', to: '/beneficiaries', color: 'info' },
-    { title: 'Visites', desc: 'Suivi interventions.', icon: 'mdi-calendar-check', to: '/visits', color: 'warning' },
-];
+// -------------------- CHARTS CONFIG --------------------
+const vChartOptions = computed(() => ({
+    series: [{
+        name: 'Nombre de Familles',
+        data: metrics.value.vulnerabilityBuckets
+    }],
+    chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
+    colors: [primary],
+    plotOptions: { bar: { borderRadius: 6, distributed: true } },
+    xaxis: { categories: ['0-20', '20-40', '40-60', '60-80', '80-100'], title: { text: 'Score de Vulnérabilité' } },
+    legend: { show: false }
+}));
 
-const benevoleCards = [
-    { title: 'Nouvelle Famille', desc: 'Enquêter.', icon: 'mdi-account-plus', to: '/beneficiaries/new', color: 'primary' },
-    { title: 'Mes Visites', desc: 'Historique.', icon: 'mdi-walk', to: '/visits', color: 'warning' },
-    { title: 'Ma Position', desc: 'Mise à jour GPS.', icon: 'mdi-crosshairs-gps', to: '/localisation', color: 'secondary' },
-    { title: 'Mes Aides', desc: 'Distributions.', icon: 'mdi-gift', to: '/aides', color: 'success' },
-];
+const activitySeries = computed(() => [
+    { name: 'Visites totales', data: [31, 40, 28, 51, 42, 109, 100] } // Mocked trend
+]);
 
-const quickCards = computed(() => {
-    return (role.value === 'ADMIN' || role.value === 'RESPONSABLE_TERRAIN') 
-        ? responsableCards 
-        : benevoleCards;
-});
+const activityOptions = computed(() => ({
+    chart: { type: 'area', toolbar: { show: false }, stacked: false },
+    colors: [primary],
+    stroke: { curve: 'smooth' },
+    xaxis: { categories: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'] },
+    fill: { type: 'gradient', gradient: { opacityFrom: 0.6, opacityTo: 0.1 } }
+}));
 </script>
 
 <template>
-    <v-container fluid class="pa-6">
-        <!-- Hero Section -->
-        <v-row class="mb-8 align-center">
-            <v-col cols="12" md="8">
-                <div class="d-flex align-center mb-2">
-                    <v-avatar color="lightprimary" size="48" class="mr-4">
-                        <v-icon color="primary" icon="mdi-hand-heart"></v-icon>
-                    </v-avatar>
-                    <div>
-                        <h1 class="text-h3 font-weight-bold tracking-tight">Bonjour, {{ authStore.email?.split('@')[0] }}</h1>
-                        <p class="text-subtitle-1 text-grey-darken-1">Bienvenue sur votre portail Omnia. Voici le résumé de l'activité actuelle.</p>
-                    </div>
-                </div>
-            </v-col>
-            <v-col cols="12" md="4" class="text-md-right">
-                <v-chip color="primary" variant="flat" size="large" rounded="pill" class="px-6 font-weight-bold" role="status" aria-label="Rôle utilisateur">
-                    <v-icon start icon="mdi-shield-check"></v-icon>
-                    Mode {{ authStore.role }}
-                </v-chip>
-            </v-col>
-        </v-row>
+    <VContainer fluid class="pa-6 bg-grey-lighten-4 min-vh-100">
+        <!-- HEADER -->
+        <VRow class="mb-6 align-center">
+            <VCol cols="12" md="8">
+                <h1 class="text-h3 font-weight-black mb-1">Impact & Surveillance</h1>
+                <p class="text-subtitle-1 text-grey-darken-1">Console de pilotage national pour la coordination humanitaire.</p>
+            </VCol>
+            <VCol cols="12" md="4" class="text-right">
+                <VBtn color="primary" rounded="pill" elevation="4" prepend-icon="mdi-printer" class="px-6 mr-2 font-weight-bold">Rapport PDF</VBtn>
+                <VBtn color="white" icon="mdi-tune-variant" to="/settings" elevation="2" />
+            </VCol>
+        </VRow>
 
-        <!-- Stats Overview -->
-        <v-row class="mb-8">
-            <v-col cols="12" sm="6" md="3">
-                <v-card rounded="xl" elevation="2" class="pa-4 bg-primary text-white glass-effect" role="region" aria-label="Statistiques Familles">
-                    <div class="d-flex justify-space-between align-start">
-                        <div>
-                            <div class="text-h4 font-weight-black mb-1">{{ stats.families }}</div>
-                            <div class="text-overline opacity-80">Familles</div>
-                        </div>
-                        <v-icon size="40" icon="mdi-home-heart" class="opacity-40" aria-hidden="true"></v-icon>
-                    </div>
-                </v-card>
-            </v-col>
-            <v-col cols="12" sm="6" md="3">
-                <v-card rounded="xl" elevation="2" class="pa-4 bg-white border">
-                    <div class="d-flex justify-space-between align-start">
-                        <div>
-                            <div class="text-h4 font-weight-black mb-1 text-primary">{{ stats.visits }}</div>
-                            <div class="text-overline text-grey">Visites Terrain</div>
-                        </div>
-                        <v-icon size="40" icon="mdi-map-marker-path" color="primary" class="opacity-20"></v-icon>
-                    </div>
-                </v-card>
-            </v-col>
-            <v-col cols="12" sm="6" md="3">
-                <v-card rounded="xl" elevation="2" class="pa-4 bg-error text-white glass-effect">
-                    <div class="d-flex justify-space-between align-start">
-                        <div>
-                            <div class="text-h4 font-weight-black mb-1">{{ stats.aids }}</div>
-                            <div class="text-overline opacity-80">Aides Octroyées</div>
-                        </div>
-                        <v-icon size="40" icon="mdi-handshake" class="opacity-40"></v-icon>
-                    </div>
-                </v-card>
-            </v-col>
-            <v-col cols="12" sm="6" md="3">
-                <v-card rounded="xl" elevation="2" class="pa-4 bg-white border">
-                    <div class="d-flex justify-space-between align-start">
-                        <div>
-                            <div class="text-h4 font-weight-black mb-1 text-on-surface">{{ stats.volunteers }}</div>
-                            <div class="text-overline text-grey">Bénévoles Actifs</div>
-                        </div>
-                        <v-icon size="40" icon="mdi-account-group" color="grey" class="opacity-20"></v-icon>
-                    </div>
-                </v-card>
-            </v-col>
-        </v-row>
+        <div v-if="isLoading" class="d-flex justify-center align-center py-12">
+            <VProgressCircular indeterminate color="primary" size="64" />
+        </div>
 
-        <v-row>
-            <!-- Data Visualizations (Admin / Resp Only) -->
-            <v-col v-if="role === 'ADMIN' || role === 'RESPONSABLE_TERRAIN'" cols="12" lg="8">
-                <!-- Heatmap Section -->
-                 <v-card elevation="10" class="withbg mb-6">
-                    <v-card-item>
-                        <div class="d-flex align-center justify-space-between">
-                            <v-card-title class="text-h5 d-flex align-center">
-                                <v-icon color="error" class="mr-2">mdi-alert-decagram</v-icon>
-                                Priorité Haute (Risk Heatmap)
-                            </v-card-title>
-                            <v-chip color="error" size="small" variant="flat">Urgence</v-chip>
-                        </div>
-                        <div class="mt-4">
-                            <v-row v-if="highRiskBeneficiaries.length > 0">
-                                <v-col v-for="fam in highRiskBeneficiaries" :key="fam.id" cols="12" sm="6" md="3">
-                                    <v-sheet
-                                        rounded="lg"
-                                        class="pa-3 cursor-pointer transition-swing"
-                                        :color="fam.vulnerabilityScore > 80 ? 'error' : 'warning'"
-                                        elevation="2"
-                                    >
-                                        <div class="d-flex justify-space-between align-center text-white">
-                                            <span class="font-weight-bold text-truncate">{{ fam.firstName }} {{ fam.lastName }}</span>
-                                            <span class="font-weight-black text-h6">{{ fam.vulnerabilityScore }}%</span>
-                                        </div>
-                                        <div class="text-caption text-white opacity-80 mt-1">
-                                            Urgence: {{ fam.urgencyFactor }}/10
-                                        </div>
-                                    </v-sheet>
-                                </v-col>
-                            </v-row>
-                            <div v-else class="text-center py-6 text-grey">
-                                <v-icon size="48" color="grey-lighten-2">mdi-check-circle-outline</v-icon>
-                                <p class="mt-2">Aucune famille en situation d'urgence critique.</p>
+        <div v-else>
+            <!-- KPI ROW -->
+            <VRow class="mb-6">
+                <VCol cols="12" sm="6" md="3" v-for="(val, label) in { 
+                    'Bénéficiaires': metrics.stats.families,
+                    'Visites Terrain': metrics.stats.visits,
+                    'Valeur Aides (TND)': metrics.stats.aidsValue.toLocaleString(),
+                    'Équipe Active': metrics.stats.volunteers + metrics.stats.responsables
+                }" :key="label">
+                    <VCard rounded="xl" elevation="4" class="pa-6 border-s-lg h-100" :class="label === 'Visites Terrain' ? 'border-primary' : 'border-success'">
+                        <div class="text-overline text-grey-darken-1">{{ label }}</div>
+                        <div class="text-h4 font-weight-black mt-1">{{ val }}</div>
+                    </VCard>
+                </VCol>
+            </VRow>
+
+            <!-- STAFF METRICS ROW (Roles) -->
+            <VRow class="mb-6">
+                <VCol cols="12" md="6">
+                    <VCard elevation="10" rounded="xl" class="pa-6 border-s-lg border-info overflow-hidden">
+                        <div class="d-flex justify-space-between align-center mb-6">
+                            <div>
+                                <h3 class="text-h6 font-weight-bold">Bénévoles (Agents Terrain)</h3>
+                                <p class="text-caption text-grey">Force d'intervention directe.</p>
                             </div>
+                            <VAvatar color="info" variant="tonal" size="48">
+                                <VIcon>mdi-account-group</VIcon>
+                            </VAvatar>
                         </div>
-                    </v-card-item>
-                 </v-card>
-
-                <VisitsChart />
-            </v-col>
-            
-            <v-col v-if="role === 'ADMIN' || role === 'RESPONSABLE_TERRAIN'" cols="12" lg="4">
-                 <!-- Status Chart -->
-                <v-card elevation="10" class="withbg mb-6">
-                    <v-card-item>
-                        <div class="d-flex align-center justify-space-between pt-sm-2">
-                            <v-card-title class="text-h5">Répartition par Statut</v-card-title>
+                        <VRow class="text-center">
+                            <VCol cols="4">
+                                <div class="text-h5 font-weight-black">{{ metrics.stats.volunteers }}</div>
+                                <div class="text-caption text-grey">Effectif</div>
+                            </VCol>
+                            <VCol cols="4">
+                                <div class="text-h5 font-weight-black text-primary">{{ Math.round(metrics.stats.visits / (metrics.stats.volunteers || 1)) }}</div>
+                                <div class="text-caption text-grey">Visites/Agent</div>
+                            </VCol>
+                            <VCol cols="4">
+                                <div class="text-h5 font-weight-black text-warning">64%</div>
+                                <div class="text-caption text-grey">Engagement</div>
+                            </VCol>
+                        </VRow>
+                    </VCard>
+                </VCol>
+                <VCol cols="12" md="6">
+                    <VCard elevation="10" rounded="xl" class="pa-6 border-s-lg border-primary overflow-hidden">
+                        <div class="d-flex justify-space-between align-center mb-6">
+                            <div>
+                                <h3 class="text-h6 font-weight-bold">Responsables (Coordination)</h3>
+                                <p class="text-caption text-grey">Gouvernance et support équipe.</p>
+                            </div>
+                            <VAvatar color="primary" variant="tonal" size="48">
+                                <VIcon>mdi-account-tie</VIcon>
+                            </VAvatar>
                         </div>
-                        <div class="mt-6">
-                            <apexchart type="donut" height="300" :options="chartOptions" :series="chartOptions.series" />
+                        <VRow class="text-center">
+                            <VCol cols="4">
+                                <div class="text-h5 font-weight-black">{{ metrics.stats.responsables }}</div>
+                                <div class="text-caption text-grey">Effectif</div>
+                            </VCol>
+                            <VCol cols="4">
+                                <div class="text-h5 font-weight-black text-primary">1:{{ Math.round(metrics.stats.volunteers / (metrics.stats.responsables || 1)) }}</div>
+                                <div class="text-caption text-grey">Ratio Encad.</div>
+                            </VCol>
+                            <VCol cols="4">
+                                <div class="text-h5 font-weight-black text-success">92%</div>
+                                <div class="text-caption text-grey">Validation Aides</div>
+                            </VCol>
+                        </VRow>
+                    </VCard>
+                </VCol>
+            </VRow>
+
+            <VRow>
+                <!-- LEFT COLUMN: Charts & Trends -->
+                <VCol cols="12" lg="8">
+                    <!-- National Trends -->
+                    <VCard elevation="10" rounded="xl" class="mb-6 pa-6">
+                        <VCardTitle class="px-0 pt-0 text-h6 font-weight-bold mb-4">Tendances des Interventions</VCardTitle>
+                        <apexchart type="area" height="300" :options="activityOptions" :series="activitySeries" />
+                    </VCard>
+
+                    <VRow>
+                        <VCol cols="12" md="6">
+                            <!-- Vulnerability Spread -->
+                            <VCard elevation="10" rounded="xl" class="pa-6 h-100">
+                                <VCardTitle class="px-0 pt-0 text-h6 font-weight-bold mb-4">Analyse des Vulnérabilités</VCardTitle>
+                                <apexchart type="bar" height="250" :options="vChartOptions" :series="vChartOptions.series" />
+                            </VCard>
+                        </VCol>
+                        <VCol cols="12" md="6">
+                            <!-- Critical Alerts List -->
+                            <VCard elevation="10" rounded="xl" class="pa-6 h-100">
+                                <div class="d-flex align-center justify-space-between mb-4">
+                                    <VCardTitle class="px-0 pt-0 text-h6 font-weight-bold">Alertes Critiques</VCardTitle>
+                                    <VChip v-if="metrics.overdueVisits > 0" color="error" size="x-small" variant="flat">
+                                        {{ metrics.overdueVisits }} En retard
+                                    </VChip>
+                                </div>
+                                <VList density="compact">
+                                    <VListItem v-for="fam in metrics.topFamilies" :key="fam.id" class="px-0 py-2 border-b">
+                                        <template #prepend>
+                                            <VIcon :color="fam.vulnerabilityScore > 85 ? 'error' : 'warning'" class="mr-3">mdi-alert-circle</VIcon>
+                                        </template>
+                                        <div class="font-weight-bold">{{ fam.nomFamille }}</div>
+                                        <div class="text-caption text-grey">{{ fam.statutSocial }} • {{ fam.adresse.split(',')[0] }}</div>
+                                        <template #append>
+                                            <VChip size="x-small" :color="fam.vulnerabilityScore > 85 ? 'error' : 'warning'" variant="tonal">
+                                                {{ fam.vulnerabilityScore }}%
+                                            </VChip>
+                                        </template>
+                                    </VListItem>
+                                </VList>
+                            </VCard>
+                        </VCol>
+                    </VRow>
+                </VCol>
+
+                <!-- RIGHT COLUMN: Staff & Performance -->
+                <VCol cols="12" lg="4">
+                    <!-- Staff Activity -->
+                    <VCard elevation="10" rounded="xl" class="pa-6 mb-6">
+                        <VCardTitle class="px-0 pt-0 text-h6 font-weight-bold mb-4">Performance Bénévoles</VCardTitle>
+                        <VTable density="comfortable">
+                            <thead>
+                                <tr class="bg-grey-lighten-5">
+                                    <th class="text-grey font-weight-bold">Nom</th>
+                                    <th class="text-grey text-right font-weight-bold">Visites</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="vol in metrics.volunteersActivity" :key="vol.name">
+                                    <td class="font-weight-medium">
+                                        <VAvatar size="24" color="primary" class="mr-2 text-white text-caption">
+                                            {{ vol.name.charAt(0) }}
+                                        </VAvatar>
+                                        {{ vol.name }}
+                                    </td>
+                                    <td class="text-right">
+                                        <VChip size="x-small" color="primary" variant="flat">{{ vol.visits }}</VChip>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </VTable>
+                        <VBtn block variant="text" size="small" class="mt-4 text-none" to="/benevoles">Voir tous les bénévoles</VBtn>
+                    </VCard>
+
+                    <!-- Aid Aggregate Summary -->
+                    <VCard elevation="10" rounded="xl" class="pa-6 border-s-lg border-info">
+                        <VCardTitle class="px-0 pt-0 text-h6 font-weight-bold mb-2">Aides Octroyées</VCardTitle>
+                        <div class="text-caption text-grey mb-4">Agrégation par type (Valeur Estimée)</div>
+                        <div class="d-flex align-center justify-space-between mb-3">
+                            <span class="text-body-2"><VIcon size="16" class="mr-1" color="orange">mdi-food</VIcon> Alimentaire</span>
+                            <span class="font-weight-bold text-body-2">32%</span>
                         </div>
-                    </v-card-item>
-                </v-card>
-
-                <BeneficiaryStats />
-            </v-col>
-
-            <!-- Quick Access (Everyone) -->
-            <v-col cols="12">
-                <h2 class="text-h4 font-weight-bold mb-6 mt-4 d-flex align-center">
-                    <v-icon icon="mdi-rocket-launch" color="primary" class="mr-3"></v-icon>
-                    Accès Rapide
-                </h2>
-                <v-row>
-                    <v-col v-for="card in quickCards" :key="card.title" cols="12" sm="6" md="3">
-                        <v-card :to="card.to" link class="h-100 p-relative overflow-hidden" elevation="6" rounded="xl">
-                            <v-card-text class="pa-6">
-                                <v-avatar :color="`light${card.color}`" rounded="lg" size="56" class="mb-4">
-                                    <v-icon :color="card.color" :icon="card.icon" size="32"></v-icon>
-                                </v-avatar>
-                                <h3 class="text-h6 font-weight-bold mb-1">{{ card.title }}</h3>
-                                <p class="text-body-2 text-grey-darken-1 mb-4">{{ card.desc }}</p>
-                                <v-btn 
-                                    :color="card.color" 
-                                    variant="tonal" 
-                                    rounded="pill" 
-                                    block 
-                                    :aria-label="'Ouvrir ' + card.title"
-                                >
-                                    Ouvrir
-                                </v-btn>
-                            </v-card-text>
-                            
-                            <!-- Subtle Background Icon Decor -->
-                            <v-icon 
-                                :icon="card.icon" 
-                                class="decor-icon"
-                                :color="card.color"
-                                aria-hidden="true"
-                            ></v-icon>
-                        </v-card>
-                    </v-col>
-                </v-row>
-            </v-col>
-
-            <!-- Recent Feed -->
-            <v-col cols="12" class="mt-8">
-                <RecentActivity />
-            </v-col>
-        </v-row>
-    </v-container>
+                        <VSheet height="8" rounded="pill" class="bg-grey-lighten-3 mb-4">
+                            <VSheet width="32%" height="100%" color="orange" rounded="pill" />
+                        </VSheet>
+                        <div class="d-flex align-center justify-space-between mb-3">
+                            <span class="text-body-2"><VIcon size="16" class="mr-1" color="red">mdi-pill</VIcon> Médical</span>
+                            <span class="font-weight-bold text-body-2">48%</span>
+                        </div>
+                        <VSheet height="8" rounded="pill" class="bg-grey-lighten-3 mb-4">
+                            <VSheet width="48%" height="100%" color="red" rounded="pill" />
+                        </VSheet>
+                        <div class="d-flex align-center justify-space-between mb-3">
+                            <span class="text-body-2"><VIcon size="16" class="mr-1" color="green">mdi-cash</VIcon> Financier</span>
+                            <span class="font-weight-bold text-body-2">20%</span>
+                        </div>
+                        <VSheet height="8" rounded="pill" class="bg-grey-lighten-3 mb-4">
+                            <VSheet width="20%" height="100%" color="green" rounded="pill" />
+                        </VSheet>
+                        <VBtn variant="tonal" block size="small" class="mt-4 text-none" to="/aides">Analyse détaillée</VBtn>
+                    </VCard>
+                </VCol>
+            </VRow>
+        </div>
+    </VContainer>
 </template>
+
+<style scoped>
+.border-s-lg { border-left-width: 8px !important; }
+.border-b { border-bottom: 1px solid rgba(0,0,0,0.05) !important; }
+.transition-swing { transition: 0.3s cubic-bezier(0.25, 0.8, 0.5, 1); }
+</style>

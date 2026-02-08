@@ -1,117 +1,220 @@
-<template>
-  <section class="page-container">
-    <header class="page-header">
-      <div>
-        <p class="eyebrow">Suivi</p>
-        <h2>Gestion des Visites</h2>
-        <p class="subtle">Historique des visites effectuées.</p>
-      </div>
-      <router-link v-if="canCreate" to="/visits/new" class="btn btn-primary">Nouvelle visite</router-link>
-    </header>
-
-    <div class="table-card">
-      <div class="table-wrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Bénéficiaire</th>
-              <th>Date</th>
-              <th>Visiteur</th>
-              <th>Notes</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="visit in visitList" :key="visit.id">
-              <td>{{ visit.beneficiary }}</td>
-              <td>{{ visit.date }}</td>
-              <td>{{ visit.visitor }}</td>
-              <td>{{ visit.notes }}</td>
-              <td>
-                <div class="actions">
-                  <router-link v-if="canEdit" :to="`/visits/edit/${visit.id}`" class="btn btn-sm btn-warning">Modifier</router-link>
-                  <button v-if="canDelete" @click="deleteVisit(visit.id)" class="btn btn-sm btn-danger">Supprimer</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-</template>
-
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { onMounted, computed, ref } from 'vue';
 import { useAuthStore } from '@/stores/auth';
-import { apiFetch } from '@/services/api';
+import { useVisitStore } from '@/stores/visit.store';
+import {
+  VContainer,
+  VRow,
+  VCol,
+  VBtn,
+  VCard,
+  VCardTitle,
+  VCardText,
+  VIcon,
+  VChip,
+  VTextField,
+  VSpacer,
+  VAvatar,
+  VAlert,
+  VTabs,
+  VTab,
+  VExpansionPanels,
+  VExpansionPanel,
+  VExpansionPanelTitle,
+  VExpansionPanelText,
+  VPagination,
+} from 'vuetify/components';
 
+// -------------------- STORES --------------------
 const authStore = useAuthStore();
+const visitStore = useVisitStore();
+
+// -------------------- STATE --------------------
+const search = ref('');
+const activeTab = ref('recent');
+const page = ref(1);
+const itemsPerPage = 6;
+
+// -------------------- PERMISSIONS --------------------
 const role = computed(() => authStore.role);
+const canCreate = computed(() => ['BENEVOLE', 'ADMIN', 'RESPONSABLE_TERRAIN'].includes(role.value || ''));
 
-// Permissions
-const canCreate = computed(() => ['BENEVOLE', 'RESPONSABLE_TERRAIN', 'ADMIN'].includes(role.value || ''));
-const canEdit = computed(() => ['RESPONSABLE_TERRAIN', 'ADMIN'].includes(role.value || ''));
-const canDelete = computed(() => ['ADMIN'].includes(role.value || ''));
+// -------------------- FETCH DATA --------------------
+onMounted(() => {
+  visitStore.fetchVisits();
+});
 
-const visitList = ref<any[]>([]);
-const isLoading = ref(false);
+// -------------------- COMPUTED --------------------
+const stats = computed(() => {
+  const all = visitStore.visits;
+  const today = new Date().toISOString().split('T')[0];
+  return {
+    total: all.length,
+    today: all.filter(v => v.date?.startsWith(today)).length,
+    noNotes: all.filter(v => !v.notes || v.notes === '-').length
+  };
+});
 
-const fetchVisits = async () => {
-    isLoading.value = true;
-    try {
-        const data = await apiFetch('/visits');
-        visitList.value = data.map((v: any) => ({
-            id: v.id,
-            beneficiary: v.visitBeneficiaires?.map((vb: any) => vb.beneficiaire?.firstName + ' ' + vb.beneficiaire?.lastName).join(', ') || 'N/A',
-            date: new Date(v.date).toLocaleDateString(),
-            visitor: v.user ? (v.user.firstName + ' ' + v.user.lastName) : 'Inconnu',
-            notes: v.notes || '-'
-        }));
-    } catch (e) {
-        console.error('Error loading visits:', e);
-    } finally {
-        isLoading.value = false;
-    }
+const filteredVisits = computed(() => {
+  let list = [...visitStore.visits];
+
+  // Segment logic
+  if (activeTab.value === 'incomplete') {
+    list = list.filter(v => !v.notes || v.notes === '-' || v.notes.length < 10);
+  }
+
+  // Search logic
+  const term = search.value.toLowerCase();
+  if (term) {
+    list = list.filter(v => 
+      (v.beneficiaryName || '').toLowerCase().includes(term) || 
+      (v.visitorName || '').toLowerCase().includes(term)
+    );
+  }
+
+  // Default sort by date descending
+  return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+});
+
+const paginatedVisits = computed(() => {
+  const start = (page.value - 1) * itemsPerPage;
+  return filteredVisits.value.slice(start, start + itemsPerPage);
+});
+
+const pageCount = computed(() => Math.ceil(filteredVisits.value.length / itemsPerPage));
+
+// -------------------- HELPERS --------------------
+const formatDate = (date: string) => {
+  return new Date(date).toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
 };
 
-onMounted(fetchVisits);
-
-const deleteVisit = async (id: string) => {
-  if (confirm('Supprimer cette visite ?')) {
+const deleteVisit = async (id: number) => {
+  if (confirm('Supprimer cet enregistrement de visite ?')) {
     try {
-        await apiFetch(`/visits/${id}`, { method: 'DELETE' });
-        visitList.value = visitList.value.filter(v => v.id !== id);
-    } catch (e) {
-        alert('Erreur lors de la suppression');
+      await visitStore.deleteVisit(id);
+    } catch (err: any) {
+      alert(err.message || 'Erreur lors de la suppression.');
     }
   }
 };
 </script>
 
+<template>
+  <VContainer fluid class="pa-6 bg-grey-lighten-4 min-vh-100">
+    <!-- HEADER & KPIs -->
+    <VRow class="mb-4 align-end">
+      <VCol cols="12" md="6">
+        <h1 class="text-h3 font-weight-bold mb-1">Journal de Visites</h1>
+        <p class="text-subtitle-1 text-grey-darken-1">Suivi chronologique et qualitatif des interventions terrain.</p>
+      </VCol>
+      <VCol cols="12" md="6" class="d-flex justify-md-end gap-4 flex-wrap">
+        <VCard min-width="140" class="pa-3 text-center rounded-lg border-s-lg border-primary" elevation="1">
+          <div class="text-caption text-grey text-uppercase font-weight-bold">Total visites</div>
+          <div class="text-h5 font-weight-black text-primary">{{ stats.total }}</div>
+        </VCard>
+        <VCard min-width="140" class="pa-3 text-center rounded-lg border-s-lg border-warning" elevation="1">
+          <div class="text-caption text-warning text-uppercase font-weight-bold">Notes manquantes</div>
+          <div class="text-h5 font-weight-black text-warning">{{ stats.noNotes }}</div>
+        </VCard>
+      </VCol>
+    </VRow>
+
+    <!-- NAVIGATION TABS & SEARCH -->
+    <VCard rounded="xl" class="mb-6 pa-2" elevation="2">
+      <VRow align="center" no-gutters>
+        <VCol cols="12" md="6">
+          <VTabs v-model="activeTab" color="primary">
+            <VTab value="recent" class="text-none">Historique récent</VTab>
+            <VTab value="incomplete" class="text-none">À compléter</VTab>
+          </VTabs>
+        </VCol>
+        <VCol cols="12" md="6" class="pa-2">
+          <div class="d-flex align-center gap-2">
+            <VTextField
+              v-model="search"
+              prepend-inner-icon="mdi-magnify"
+              placeholder="Chercher par famille ou bénévole..."
+              hide-details
+              density="comfortable"
+              variant="solo"
+              flat
+              rounded="lg"
+            />
+            <VBtn v-if="canCreate" icon="mdi-map-marker-plus" color="primary" rounded="lg" size="large" to="/visits/new" />
+          </div>
+        </VCol>
+      </VRow>
+    </VCard>
+
+    <!-- LIST OF VISITS -->
+    <div v-if="visitStore.loading" class="text-center py-12">
+      <v-progress-circular indeterminate color="primary" size="64" />
+    </div>
+
+    <VExpansionPanels variant="accordion" class="custom-panels">
+      <VExpansionPanel
+        v-for="visit in paginatedVisits"
+        :key="visit.id"
+        class="mb-3 rounded-xl overflow-hidden border-card"
+        elevation="0"
+      >
+        <VExpansionPanelTitle class="pa-0">
+          <VRow no-gutters class="align-center w-100 pa-4 pr-0">
+             <VCol cols="12" sm="3" class="d-flex align-center">
+                <VAvatar color="primary" variant="tonal" class="mr-4" size="48">
+                  <VIcon>mdi-account-arrow-right</VIcon>
+                </VAvatar>
+                <div>
+                  <div class="text-subtitle-1 font-weight-bold">{{ visit.beneficiaryName }}</div>
+                  <div class="text-caption text-grey">{{ formatDate(visit.date) }}</div>
+                </div>
+             </VCol>
+             <VCol cols="6" sm="3" class="text-center">
+                <VChip size="small" variant="text" class="px-0">
+                   <VIcon start size="16">mdi-account-outline</VIcon>
+                   {{ visit.visitorName }}
+                </VChip>
+             </VCol>
+             <VCol cols="6" sm="4">
+                <div class="text-body-2 text-grey-darken-1 text-truncate" style="max-width: 300px">
+                   {{ visit.notes || 'Aucune note saisie' }}
+                </div>
+             </VCol>
+             <VCol cols="2" class="text-right d-none d-sm-block">
+                <VIcon v-if="visit.notes && visit.notes !== '-'" color="success">mdi-check-circle</VIcon>
+                <VIcon v-else color="warning">mdi-alert-circle-outline</VIcon>
+             </VCol>
+          </VRow>
+        </VExpansionPanelTitle>
+
+        <VExpansionPanelText class="bg-grey-lighten-5 pa-4">
+           <div class="text-h6 mb-2">Compte-rendu de visite</div>
+           <div class="bg-white pa-4 rounded-lg border mb-4 text-body-1 line-height-relaxed">
+             {{ visit.notes || 'Cet enregistrement ne contient pas encore de notes détaillées.' }}
+           </div>
+           <div class="d-flex gap-2">
+             <VBtn color="primary" variant="tonal" size="small" class="text-none" prepend-icon="mdi-pencil" :to="`/visits/edit/${visit.id}`">Modifier les notes</VBtn>
+             <VSpacer />
+             <VBtn v-if="role === 'ADMIN'" color="error" variant="text" size="small" class="text-none" @click="deleteVisit(visit.id)">Supprimer définitivement</VBtn>
+           </div>
+        </VExpansionPanelText>
+      </VExpansionPanel>
+    </VExpansionPanels>
+
+    <div class="d-flex justify-center mt-6">
+      <VPagination v-model="page" :length="pageCount" rounded="lg" color="primary" />
+    </div>
+  </VContainer>
+</template>
+
 <style scoped>
-.page-container {
-  --ink: #0f172a;
-  --muted: #6b7280;
-  --brand: #0f766e;
-  background: linear-gradient(180deg, #f7f8fb 0%, #eef2f7 100%);
-  min-height: 100%;
-  padding: 28px;
-}
-.page-header { margin-bottom: 30px; }
-.eyebrow { text-transform: uppercase; letter-spacing: 0.12em; font-size: 12px; color: var(--muted); margin: 0 0 6px; }
-h2 { margin: 0; font-size: 26px; color: var(--ink); }
-.subtle { margin: 6px 0 0; color: var(--muted); }
-.table-card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 14px; box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08); }
-.table-wrap { overflow-x: auto; }
-.table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 600px; }
-.table th { text-align: left; padding: 14px 16px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #475569; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
-.table td { padding: 14px 16px; border-bottom: 1px solid #edf2f7; color: var(--ink); }
-.actions { display: flex; align-items: center; gap: 8px; }
-.btn { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
-.btn-primary { background: #0f766e; color: #fff; padding: 10px 20px; font-weight: 600; }
-.btn-warning { background: #f59e0b; color: #fff; }
-.btn-danger { background: #ef4444; color: #fff; }
-.btn-sm { padding: 6px 10px; font-size: 12px; }
-.btn:hover { filter: brightness(0.95); }
+.gap-2 { gap: 8px; }
+.gap-4 { gap: 16px; }
+.border-card { border: 1px solid #e0e0e0 !important; }
+.border-s-lg { border-left-width: 6px !important; }
+.line-height-relaxed { line-height: 1.6; }
 </style>

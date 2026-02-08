@@ -50,19 +50,41 @@ const sidebarMenu = computed(() => {
     </v-navigation-drawer>
     <div class="container verticalLayout">
         <div class="maxWidth">
-            <v-app-bar elevation="0" height="70">
-                <div class="d-flex align-center justify-space-between w-100">
-                    <div>
-                        <v-btn class="hidden-lg-and-up text-muted" @click="sDrawer = !sDrawer" icon
+            <v-app-bar elevation="0" height="70" class="border-b">
+                <div class="d-flex align-center justify-space-between w-100 px-4">
+                    <div class="d-flex align-center">
+                        <v-btn class="hidden-lg-and-up text-muted mr-2" @click="sDrawer = !sDrawer" icon
                             variant="flat" size="small">
                             <Menu2Icon size="20" stroke-width="1.5" />
                         </v-btn>
+                        
+                        <!-- Page Context Title (Hidden on small screens) -->
+                        <div class="hidden-sm-and-down ml-4">
+                            <h2 class="text-subtitle-1 font-weight-bold grey--text text--darken-2">Omnia Humanitarian OS</h2>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-center gap-3">
+                        <!-- Role Badge (Prominent) -->
+                        <VChip 
+                            :color="authStore.role === 'ADMIN' ? 'error' : (authStore.role === 'RESPONSABLE_TERRAIN' ? 'primary' : 'success')" 
+                            variant="flat" 
+                            size="small" 
+                            class="font-weight-black text-uppercase px-4 hidden-xs"
+                            rounded="pill"
+                        >
+                            {{ authStore.role === 'ADMIN' ? 'Administrateur' : (authStore.role === 'RESPONSABLE_TERRAIN' ? 'Responsable' : 'Bénévole') }}
+                        </VChip>
+
                         <!-- Notification -->
                         <NotificationDD />
-                    </div>
-                    <div>
-                        <!-- Upgrade button removed -->
                         
+                        <!-- User Info Vertical Stack (Hidden on mobile) -->
+                        <div class="text-right mr-3 hidden-sm-and-down">
+                            <div class="text-body-2 font-weight-bold line-height-tight">{{ authStore.email?.split('@')[0] }}</div>
+                            <div class="text-caption text-grey opacity-70">{{ authStore.email }}</div>
+                        </div>
+
                         <!-- User Profile -->
                         <ProfileDD />
                     </div>

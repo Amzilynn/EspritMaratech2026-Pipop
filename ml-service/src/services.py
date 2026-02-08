@@ -35,7 +35,9 @@ class ScoringService:
             socialFactor=scores['socialFactor'],
             urgencyFactor=scores['urgencyFactor'],
             riskLevel=scores['riskLevel'],
-            recommendations=scores['recommendations']
+            recommendations=scores['recommendations'],
+            confidenceScore=scores['confidenceScore'],
+            featureContributions=scores['featureContributions']
         )
     
     def score_batch(self, beneficiaries: List[BeneficiaryInput]) -> Tuple[List[VulnerabilityScoreOutput], List[Dict]]:

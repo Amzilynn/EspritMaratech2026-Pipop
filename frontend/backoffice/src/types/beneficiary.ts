@@ -1,10 +1,20 @@
 export interface Beneficiary {
-  id: number;
-  name: string;
-  address: string;
-  members: number;
-  socialStatus: string;
-  phone: string;
-  cin: string;
-  archived: boolean;
+  id: string | number;
+  codeFamille?: string;
+  nomFamille: string;
+  adresse: string;
+  telephone: string;
+  nbMembres: number;
+  nbEnfants?: number;
+  nbPersonnesAgees?: number;
+  nbHandicapes?: number;
+  revenuMensuel?: number;
+  typeLogement?: string;
+  statutSocial?: string;
+  situationSociale?: string;
+  active: boolean;
+  score?: number;
+  riskLevel?: string;
+  latitude?: number;
+  longitude?: number;
 }

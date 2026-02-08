@@ -73,8 +73,7 @@ const MainRoutes = {
         { path: '/planning', name: 'Planning', component: () => import('@/views/planning/Planning.vue') },
         { path: '/history', name: 'History', component: () => import('@/views/history/History.vue') },
         { path: '/reports', name: 'Reports', component: () => import('@/views/reports/Reports.vue') },
-
-
+        { path: '/settings', name: 'Settings', component: () => import('@/views/settings/Settings.vue') },
     ]
 };
 

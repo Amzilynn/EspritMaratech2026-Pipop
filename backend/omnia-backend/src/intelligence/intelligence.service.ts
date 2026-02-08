@@ -580,6 +580,13 @@ export class IntelligenceService {
             urgencyFactor: result.details.urgency,
             riskLevel: result.riskLevel,
             recommendations: result.recommendations,
+            featureContributions: [
+                { feature: 'Statut Économique', value: result.details.economic, max_possible: 40 },
+                { feature: 'Besoins Santé', value: result.details.health, max_possible: 30 },
+                { feature: 'Facteurs Sociaux', value: result.details.social, max_possible: 20 },
+                { feature: 'Urgence', value: result.details.urgency, max_possible: 10 }
+            ],
+            confidenceScore: 0.85, // Static high confidence for internal logic
             calculated_at: new Date()
         };
     }

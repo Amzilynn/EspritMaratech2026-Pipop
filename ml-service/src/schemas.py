@@ -30,6 +30,8 @@ class VulnerabilityScoreOutput(BaseModel):
     urgencyFactor: float = Field(ge=0, le=10, description="Urgency factor")
     riskLevel: str = Field(description="Risk level: CRITICAL, HIGH, MEDIUM, LOW")
     recommendations: List[str] = Field(description="Recommendations for aid")
+    confidenceScore: float = Field(default=1.0, ge=0, le=1, description="Model confidence in this prediction")
+    featureContributions: List[Dict] = Field(default=[], description="Top features contributing to the score")
     calculated_at: datetime = Field(default_factory=datetime.utcnow)
 
 

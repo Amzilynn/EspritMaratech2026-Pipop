@@ -1,125 +1,194 @@
-<template>
-  <section class="page-container">
-    <header class="page-header">
-      <div>
-        <p class="eyebrow">Suivi</p>
-        <h2>{{ isEdit ? 'Modifier Visite' : 'Nouvelle Visite' }}</h2>
-      </div>
-    </header>
-    <div class="form-card">
-      <form @submit.prevent="saveVisit">
-        <div class="field-group">
-          <label class="field-label">Bénéficiaire</label>
-          <select class="field-input" v-model="form.beneficiaryId" required>
-            <option value="" disabled>Sélectionner un bénéficiaire</option>
-            <option v-for="b in beneficiaries" :key="b.id" :value="b.id">
-              {{ b.firstName }} {{ b.lastName }}
-            </option>
-          </select>
-        </div>
-        <div class="field-group">
-          <label class="field-label">Date de visite (Automatique)</label>
-          <input type="date" class="field-input" v-model="form.date" disabled />
-        </div>
-        <!-- Visitor is authenticated user -->
-        <div class="field-group">
-          <label class="field-label">Notes</label>
-          <textarea class="field-input" v-model="form.notes" rows="4" required></textarea>
-        </div>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-success">Sauvegarder</button>
-          <router-link to="/visits" class="btn btn-secondary">Annuler</router-link>
-        </div>
-      </form>
-    </div>
-  </section>
-</template>
-
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { apiFetch } from '@/services/api';
+import { useVisitStore } from '@/stores/visit.store';
+import {
+  VContainer,
+  VRow,
+  VCol,
+  VBtn,
+  VCard,
+  VCardTitle,
+  VCardText,
+  VCardActions,
+  VTextField,
+  VTextarea,
+  VIcon,
+  VSelect,
+  VSpacer,
+  VAlert,
+  VDivider,
+} from 'vuetify/components';
 
+// -------------------- STORES --------------------
 const route = useRoute();
 const router = useRouter();
+const visitStore = useVisitStore();
+
+// -------------------- STATE --------------------
 const isEdit = ref(false);
+const loading = ref(false);
+const error = ref<string | null>(null);
+
 const form = ref({
-    id: '',
-    date: new Date().toISOString().split('T')[0],
-    notes: '',
-    beneficiaryId: '' 
+  id: undefined as number | undefined,
+  date: new Date().toISOString().split('T')[0],
+  notes: '',
+  beneficiaryId: null as number | null
 });
 
 const beneficiaries = ref<any[]>([]);
 
+// -------------------- FETCH DATA --------------------
 const loadBeneficiaries = async () => {
-    try {
-        const data = await apiFetch('/beneficiaires');
-        beneficiaries.value = data;
-    } catch(e) { console.error('Error loading beneficiaries', e); }
+  try {
+    const data = await apiFetch('/beneficiaires');
+    beneficiaries.value = data.map((b: any) => ({
+      ...b,
+      fullName: b.nomFamille || (b.firstName + ' ' + (b.lastName || '')) || b.name
+    }));
+  } catch (err: any) {
+    console.error('Error loading beneficiaries', err);
+  }
 };
 
 onMounted(async () => {
   await loadBeneficiaries();
-  // Check if ID exists and is not 'new' or empty (router sometimes passes artifacts)
   const id = route.params.id;
   if (id && id !== 'new') {
     isEdit.value = true;
+    loading.value = true;
     try {
-        const visit = await apiFetch(`/visits/${id}`);
-        form.value = {
-            id: visit.id,
-            date: visit.date ? new Date(visit.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-            notes: visit.notes || '',
-            beneficiaryId: visit.visitBeneficiaires?.[0]?.beneficiaire?.id || ''
-        };
-    } catch(e) { console.error('Error loading visit', e); }
+      const visit = await apiFetch(`/visits/${id}`);
+      form.value = {
+        id: visit.id,
+        date: visit.date ? new Date(visit.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        notes: visit.notes || '',
+        beneficiaryId: visit.visitBeneficiaires?.[0]?.beneficiaire?.id || null
+      };
+    } catch (err: any) {
+      error.value = 'Impossible de charger les détails de la visite.';
+    } finally {
+      loading.value = false;
+    }
   }
 });
 
-const saveVisit = async () => {
-  try {
-       // Construct payload matching backend expectations
-       const payload = {
-           notes: form.value.notes,
-           // For simple visits, we associate one beneficiary. Backend expects 'associations' array.
-           associations: [{ 
-               beneficiaryId: form.value.beneficiaryId, 
-               aids: [] // Can extend to add aids here later
-           }]
-       };
-
-       if (isEdit.value) {
-           await apiFetch(`/visits/${form.value.id}`, { 
-               method: 'PATCH', 
-               body: JSON.stringify({ notes: form.value.notes }) // Update currently only supports simple fields easily
-           });
-       } else {
-           await apiFetch('/visits', { 
-               method: 'POST', 
-               body: JSON.stringify(payload) 
-           });
-       }
-       router.push('/visits');
-  } catch(e) {
-      alert('Erreur lors de la sauvegarde');
-      console.error(e);
+// -------------------- SAVE --------------------
+async function saveVisit() {
+  if (!form.value.beneficiaryId || !form.value.notes) {
+    error.value = 'Veuillez sélectionner un bénéficiaire et saisir des notes.';
+    return;
   }
-};
+
+  loading.value = true;
+  error.value = null;
+  try {
+    if (isEdit.value) {
+      await visitStore.updateVisit(form.value.id!, { notes: form.value.notes });
+    } else {
+      const payload = {
+        notes: form.value.notes,
+        associations: [{ 
+          beneficiaryId: form.value.beneficiaryId, 
+          aids: [] 
+        }]
+      };
+      await visitStore.createVisit(payload);
+    }
+    router.push('/visits');
+  } catch (err: any) {
+    error.value = err.message || 'Erreur lors de la sauvegarde.';
+  } finally {
+    loading.value = false;
+  }
+}
 </script>
 
+<template>
+  <VContainer fluid class="pa-6">
+    <!-- HEADER -->
+    <VRow class="mb-6 align-center">
+      <VCol cols="12">
+        <v-btn variant="text" prepend-icon="mdi-arrow-left" to="/visits" class="mb-4">Retour</v-btn>
+        <p class="text-overline mb-1 text-primary font-weight-bold">Suivi Terrain</p>
+        <h1 class="text-h3 font-weight-bold mb-2">{{ isEdit ? 'Modifier la visite' : 'Nouvelle visite' }}</h1>
+        <p class="text-body-1 text-grey-darken-1">Enregistrez les détails de votre intervention sur le terrain.</p>
+      </VCol>
+    </VRow>
+
+    <VRow justify="center">
+      <VCol cols="12" md="8" lg="6">
+        <VCard rounded="xl" elevation="10" class="pa-6">
+          <VCardTitle class="px-0 pt-0 mb-6 font-weight-bold d-flex align-center">
+            <VIcon color="primary" class="mr-2">mdi-clipboard-text-outline</VIcon>
+            Détails de l'intervention
+          </VCardTitle>
+
+          <VAlert v-if="error" type="error" variant="tonal" class="mb-6" closable>
+            {{ error }}
+          </VAlert>
+
+          <VRow>
+            <VCol cols="12">
+              <VSelect
+                v-model="form.beneficiaryId"
+                :items="beneficiaries"
+                item-title="fullName"
+                item-value="id"
+                label="Bénéficiaire"
+                variant="outlined"
+                prepend-inner-icon="mdi-account-group"
+                :disabled="isEdit"
+                placeholder="Sélectionner la famille visitée"
+              />
+            </VCol>
+            
+            <VCol cols="12">
+              <VTextField
+                v-model="form.date"
+                label="Date de la visite"
+                type="date"
+                variant="outlined"
+                prepend-inner-icon="mdi-calendar"
+                readonly
+                hint="La date est fixée au moment de l'enregistrement"
+              />
+            </VCol>
+
+            <VCol cols="12">
+              <VTextarea
+                v-model="form.notes"
+                label="Observations et notes"
+                variant="outlined"
+                rows="6"
+                placeholder="Décrivez le déroulement de la visite, les besoins identifiés, etc."
+                counter
+              />
+            </VCol>
+          </VRow>
+
+          <VCardActions class="px-0 mt-6">
+            <VSpacer />
+            <VBtn variant="text" size="large" to="/visits">Annuler</VBtn>
+            <VBtn 
+              color="primary" 
+              variant="flat" 
+              size="large" 
+              rounded="lg" 
+              class="px-8 font-weight-bold" 
+              @click="saveVisit" 
+              :loading="loading"
+            >
+              {{ isEdit ? 'Sauvegarder' : 'Confirmer la visite' }}
+            </VBtn>
+          </VCardActions>
+        </VCard>
+      </VCol>
+    </VRow>
+  </VContainer>
+</template>
+
 <style scoped>
-.page-container { background: linear-gradient(180deg, #f7f8fb 0%, #eef2f7 100%); min-height: 100%; padding: 28px; }
-.page-header { margin-bottom: 24px; }
-.eyebrow { text-transform: uppercase; letter-spacing: 0.12em; font-size: 12px; color: #6b7280; margin: 0 0 6px; }
-h2 { margin: 0; font-size: 26px; color: #0f172a; }
-.form-card { background: #ffffff; padding: 32px; border-radius: 14px; box-shadow: 0 10px 28px rgba(15,23,42,0.08); max-width: 600px; }
-.field-group { margin-bottom: 20px; display: flex; flex-direction: column; }
-.field-label { font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 14px; }
-.field-input { padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; }
-.field-input:focus { outline: none; border-color: #0f766e; box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1); }
-.form-actions { display: flex; gap: 12px; margin-top: 24px; }
-.btn { padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
-.btn-success { background: #0f766e; color: #fff; }
-.btn-secondary { background: #fff; border: 1px solid #d1d5db; color: #374151; }
 </style>

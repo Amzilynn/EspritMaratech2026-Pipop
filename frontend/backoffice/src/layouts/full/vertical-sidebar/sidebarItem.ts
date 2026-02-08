@@ -28,79 +28,149 @@ export interface menu {
 }
 
 const sidebarItem: menu[] = [
-  { header: 'Tableau de bord' },
+  // ==========================================
+  // 👑 ADMIN (GOUVERNANCE SYSTÈME)
+  // ==========================================
+  { header: 'Pilotage', roles: ['ADMIN'] },
   {
-    title: 'Dashboard',
-    icon: 'mdi-view-dashboard',
-    BgColor: 'primary',
+    title: 'Tableau de bord',
+    subCaption: 'Santé globale du système',
+    icon: 'mdi-monitor-dashboard',
     to: '/',
-    roles: ['ADMIN', 'RESPONSABLE_TERRAIN', 'BENEVOLE']
+    roles: ['ADMIN']
   },
-  { header: 'Gestion' },
-  {
-    title: 'Familles Bénéficiaires',
-    icon: 'mdi-emoticon-happy',
-    BgColor: 'primary',
-    to: '/beneficiaries',
-    roles: ['ADMIN', 'RESPONSABLE_TERRAIN', 'BENEVOLE']
-  },
-  {
-    title: 'Visites',
-    icon: 'mdi-map-marker-path',
-    BgColor: 'primary',
-    to: '/visits',
-    roles: ['ADMIN', 'RESPONSABLE_TERRAIN', 'BENEVOLE']
-  },
-  {
-    title: 'Aides',
-    icon: 'mdi-gift',
-    BgColor: 'primary',
-    to: '/aides',
-    roles: ['ADMIN', 'RESPONSABLE_TERRAIN', 'BENEVOLE']
-  },
-  {
-    title: 'Localisation',
-    icon: 'mdi-crosshairs-gps',
-    BgColor: 'primary',
-    to: '/localisation',
-    roles: ['BENEVOLE', 'RESPONSABLE_TERRAIN']
-  },
-  { header: 'Administration', roles: ['ADMIN', 'RESPONSABLE_TERRAIN'] },
-  {
-    title: 'Bénévoles',
-    icon: 'mdi-account-heart',
-    BgColor: 'primary',
-    to: '/benevoles',
-    roles: ['ADMIN', 'RESPONSABLE_TERRAIN']
-  },
+  { header: 'Utilisateurs', roles: ['ADMIN'] },
   {
     title: 'Responsables',
-    icon: 'mdi-account-tie',
-    BgColor: 'primary',
+    subCaption: 'Superviseurs terrain',
+    icon: 'mdi-account-tie-outline',
     to: '/responsables',
     roles: ['ADMIN']
   },
-  { header: 'Analyses', roles: ['ADMIN', 'RESPONSABLE_TERRAIN'] },
   {
-    title: 'Rapports',
-    icon: 'mdi-chart-pie',
-    BgColor: 'primary',
-    to: '/reports',
-    roles: ['ADMIN', 'RESPONSABLE_TERRAIN']
+    title: 'Bénévoles',
+    subCaption: 'Agents d\'intervention',
+    icon: 'mdi-account-group-outline',
+    to: '/benevoles',
+    roles: ['ADMIN']
+  },
+  { header: 'Opérations', roles: ['ADMIN'] },
+  {
+    title: 'Données terrain',
+    subCaption: 'Audit familles & visites',
+    icon: 'mdi-database-check-outline',
+    to: '/beneficiaries',
+    roles: ['ADMIN']
   },
   {
-    title: 'Priorités & Risques',
-    icon: 'mdi-alert-decagram',
-    BgColor: 'primary',
+    title: 'Carte & Rapports',
+    subCaption: 'Impact & Géolocalisation',
+    icon: 'mdi-earth',
     to: '/cartography',
-    roles: ['ADMIN', 'RESPONSABLE_TERRAIN']
+    roles: ['ADMIN']
+  },
+  {
+    title: 'Paramètres',
+    subCaption: 'Configuration du système',
+    icon: 'mdi-cog-outline',
+    to: '/settings',
+    roles: ['ADMIN']
+  },
+
+  // ==========================================
+  // 🧭 RESPONSABLE (SUPERVISION & PLANNING)
+  // ==========================================
+  { header: 'Supervision', roles: ['RESPONSABLE_TERRAIN'] },
+  {
+    title: 'Vue d’ensemble',
+    subCaption: 'Performance & alertes',
+    icon: 'mdi-view-quilt-outline',
+    to: '/',
+    roles: ['RESPONSABLE_TERRAIN']
+  },
+  { header: 'Utilisateurs', roles: ['RESPONSABLE_TERRAIN'] },
+  {
+    title: 'Bénévoles',
+    subCaption: 'Agents de mon secteur',
+    icon: 'mdi-account-group-outline',
+    to: '/benevoles',
+    roles: ['RESPONSABLE_TERRAIN']
+  },
+  { header: 'Opérations', roles: ['RESPONSABLE_TERRAIN'] },
+  {
+    title: 'Suivi des actions',
+    subCaption: 'Visites et aides',
+    icon: 'mdi-list-status',
+    to: '/visits',
+    roles: ['RESPONSABLE_TERRAIN']
+  },
+  {
+    title: 'Carte & zones',
+    subCaption: 'Couverture géographique du secteur',
+    icon: 'mdi-map-marker-radius-outline',
+    to: '/cartography',
+    roles: ['RESPONSABLE_TERRAIN']
   },
   {
     title: 'Planification',
+    subCaption: 'Organisation des interventions',
     icon: 'mdi-calendar-clock',
-    BgColor: 'primary',
     to: '/planning',
     roles: ['RESPONSABLE_TERRAIN']
+  },
+  {
+    title: 'Historique global',
+    subCaption: 'Audit des actions passées',
+    icon: 'mdi-history',
+    to: '/history',
+    roles: ['RESPONSABLE_TERRAIN']
+  },
+
+  // ==========================================
+  // 🚶 BÉNÉVOLE (ACTION TERRAIN)
+  // ==========================================
+  { header: 'Ma Mission', roles: ['BENEVOLE'] },
+  {
+    title: 'Accueil',
+    subCaption: 'Ma journée et mes priorités',
+    icon: 'mdi-home-heart',
+    to: '/',
+    roles: ['BENEVOLE']
+  },
+  {
+    title: 'Familles',
+    subCaption: 'Consultation des dossiers bénéficiaires',
+    icon: 'mdi-account-heart-outline',
+    to: '/beneficiaries',
+    roles: ['BENEVOLE']
+  },
+  {
+    title: 'Nouvelle visite',
+    subCaption: 'Enregistrer une intervention maintenant',
+    icon: 'mdi-clipboard-plus-outline',
+    to: '/visits/new',
+    roles: ['BENEVOLE']
+  },
+  {
+    title: 'Aides distribuées',
+    subCaption: 'Déclarer les ressources remises',
+    icon: 'mdi-package-variant-closed-check',
+    to: '/aides',
+    roles: ['BENEVOLE']
+  },
+  {
+    title: 'Carte terrain',
+    subCaption: 'Localiser les familles à proximité',
+    icon: 'mdi-map-marker-path',
+    to: '/cartography',
+    roles: ['BENEVOLE']
+  },
+  {
+    title: 'Historique famille',
+    subCaption: 'Consulter les actions passées',
+    icon: 'mdi-text-box-search-outline',
+    to: '/history',
+    roles: ['BENEVOLE']
   },
 ];
 
