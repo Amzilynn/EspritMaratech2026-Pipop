@@ -2,8 +2,11 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { apiFetch } from '@/services/api'
+import FaceCaptureModal from '@/components/FaceCaptureModal.vue'
+import { useVoiceAssistant } from '@/composables/useVoiceAssistant'
 
 const router = useRouter()
+const { ttsEnabled, currentlySpeaking, speak, stopSpeaking } = useVoiceAssistant()
 
 const user = ref({
     firstName: '',
@@ -17,6 +20,7 @@ const isEditing = ref(false)
 const isLoading = ref(false)
 const errorMsg = ref('')
 const successMsg = ref('')
+const isFaceModalOpen = ref(false)
 
 const editForm = ref({
     firstName: '',
@@ -30,16 +34,7 @@ onMounted(async () => {
 
 async function loadProfile() {
     try {
-        const token = localStorage.getItem('access_token')
-        if (!token) {
-            router.push('/login')
-            return
-        }
-
-        const response = await apiFetch('/auth/profile', {
-            method: 'GET'
-        })
-
+        const response = await apiFetch('/users/profile')
         user.value = response
         editForm.value = {
             firstName: response.firstName,
@@ -47,7 +42,6 @@ async function loadProfile() {
             telephone: response.telephone || ''
         }
     } catch (err: any) {
-        errorMsg.value = 'Erreur lors du chargement du profil'
         if (err.message.includes('401')) {
             localStorage.removeItem('access_token')
             router.push('/login')
@@ -55,40 +49,39 @@ async function loadProfile() {
     }
 }
 
-function startEditing() {
-    isEditing.value = true
-    errorMsg.value = ''
-    successMsg.value = ''
-}
-
-function cancelEditing() {
-    isEditing.value = false
-    editForm.value = {
-        firstName: user.value.firstName,
-        lastName: user.value.lastName,
-        telephone: user.value.telephone || ''
-    }
-    errorMsg.value = ''
-}
-
 async function saveProfile() {
-    errorMsg.value = ''
-    successMsg.value = ''
     isLoading.value = true
-
     try {
-        const response = await apiFetch('/users/profile', {
+        await apiFetch('/users/profile', {
             method: 'PATCH',
             body: JSON.stringify(editForm.value)
         })
-
         user.value = { ...user.value, ...editForm.value }
         isEditing.value = false
-        successMsg.value = 'Profil mis à jour avec succès !'
-        
+        successMsg.value = 'Profil mis à jour !'
         setTimeout(() => successMsg.value = '', 3000)
     } catch (err: any) {
-        errorMsg.value = err.message || 'Erreur lors de la mise à jour du profil'
+        errorMsg.value = err.message
+    } finally {
+        isLoading.value = false
+    }
+}
+
+async function handleFaceEnroll(file: File) {
+    isFaceModalOpen.value = false
+    isLoading.value = true
+    try {
+        const formData = new FormData()
+        formData.append('file', file)
+        const token = localStorage.getItem('access_token')
+        await fetch('http://localhost:3000/auth/face-enroll', {
+            method: 'POST',
+            body: formData,
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        successMsg.value = "Face ID configuré !"
+    } catch (e: any) {
+        errorMsg.value = e.message
     } finally {
         isLoading.value = false
     }
@@ -96,498 +89,246 @@ async function saveProfile() {
 
 function logout() {
     localStorage.removeItem('access_token')
+    localStorage.removeItem('fo_user')
     router.push('/login')
 }
 
-function getRoleName(role: string) {
-    const roles: Record<string, string> = {
-        'ADMIN': 'Administrateur',
-        'RESPONSABLE_TERRAIN': 'Responsable Terrain',
-        'BENEVOLE': 'Bénévole',
-        'CITOYEN': 'Citoyen'
-    }
-    return roles[role] || role
-}
-
-function getRoleColor(role: string) {
-    const colors: Record<string, string> = {
-        'ADMIN': '#D32F2F',
-        'RESPONSABLE_TERRAIN': '#1976D2',
-        'BENEVOLE': '#388E3C',
-        'CITOYEN': '#F57C00'
-    }
-    return colors[role] || '#757575'
-}
+// Voice Handlers
+const onHoverBreadcam = () => speak("Mon Profil personnel.", 'bradcam')
+const onHoverInfo = (label: string, value: string) => speak(`${label} : ${value || 'Non renseigné'}.`, 'info-' + label)
+const onHoverQuickLink = (name: string) => speak(`Accès rapide vers ${name}.`, 'link-' + name)
 </script>
 
 <template>
     <div class="profile-page">
-        <div class="profile-container">
-            <!-- Header -->
-            <div class="profile-header">
-                <div class="header-content">
-                    <router-link to="/" class="back-link">
-                        <i class="fa fa-arrow-left"></i> Retour à l'accueil
-                    </router-link>
-                    <h1>Mon Profil</h1>
-                </div>
+        <!-- Page Header -->
+        <div class="page-header-omnia" @mouseenter="onHoverBreadcam" @mouseleave="stopSpeaking">
+            <div class="container-omnia">
+                <h1>ESPACE MEMBRE</h1>
+                <p>Gérez vos informations personnelles et accédez à vos services.</p>
             </div>
+        </div>
 
-            <div v-if="errorMsg" class="alert alert-error">
-                <i class="fa fa-exclamation-circle"></i> {{ errorMsg }}
-            </div>
-
-            <div v-if="successMsg" class="alert alert-success">
-                <i class="fa fa-check-circle"></i> {{ successMsg }}
-            </div>
-
-            <!-- Profile Card -->
-            <div class="profile-card">
-                <!-- Avatar Section -->
-                <div class="avatar-section">
-                    <div class="avatar">
-                        <i class="fa fa-user"></i>
+        <section class="section-padding container-omnia">
+            <div class="profile-layout">
+                <!-- Sidebar / Bio -->
+                <aside class="profile-sidebar">
+                    <div class="card-omnia bio-card text-center">
+                        <div class="avatar-circle">
+                            <i class="fa fa-user"></i>
+                        </div>
+                        <h2>{{ user.firstName }} {{ user.lastName }}</h2>
+                        <div class="role-pill" :class="user.role.toLowerCase()">{{ user.role }}</div>
+                        
+                        <div class="mt-4 pt-4 border-top">
+                            <button class="btn-omnia btn-outline w-100 mb-2" @click="isEditing = !isEditing">
+                                <i class="fa" :class="isEditing ? 'fa-times' : 'fa-edit'"></i>
+                                {{ isEditing ? 'ANNULER' : 'MODIFIER PROFIL' }}
+                            </button>
+                            <button class="btn-omnia btn-accent w-100 mb-2" @click="isFaceModalOpen = true">
+                                <i class="fa fa-camera"></i> FACE ID
+                            </button>
+                            <button class="btn-omnia btn-error w-100" @click="logout">
+                                <i class="fa fa-sign-out"></i> DÉCONNEXION
+                            </button>
+                        </div>
                     </div>
-                    <div class="role-badge" :style="{ background: getRoleColor(user.role) }">
-                        {{ getRoleName(user.role) }}
-                    </div>
-                </div>
+                </aside>
 
-                <!-- Info Section -->
-                <div class="info-section">
-                    <div v-if="!isEditing" class="info-display">
-                        <div class="info-row">
-                            <div class="info-item">
-                                <label><i class="fa fa-user"></i> Prénom</label>
+                <!-- Profile Content -->
+                <div class="profile-main">
+                    <div v-if="successMsg" class="alert-omnia success mb-4">{{ successMsg }}</div>
+                    <div v-if="errorMsg" class="alert-omnia error mb-4">{{ errorMsg }}</div>
+
+                    <!-- Info Display -->
+                    <div v-if="!isEditing" class="card-omnia profile-details">
+                        <div class="details-grid">
+                            <div class="detail-item" @mouseenter="onHoverInfo('Prénom', user.firstName)" @mouseleave="stopSpeaking">
+                                <label>PRÉNOM</label>
                                 <p>{{ user.firstName }}</p>
                             </div>
-                            <div class="info-item">
-                                <label>Nom</label>
+                            <div class="detail-item" @mouseenter="onHoverInfo('Nom', user.lastName)" @mouseleave="stopSpeaking">
+                                <label>NOM</label>
                                 <p>{{ user.lastName }}</p>
                             </div>
-                        </div>
-
-                        <div class="info-row">
-                            <div class="info-item full">
-                                <label><i class="fa fa-envelope"></i> Email</label>
+                            <div class="detail-item full" @mouseenter="onHoverInfo('Email', user.email)" @mouseleave="stopSpeaking">
+                                <label>ADRESSE EMAIL</label>
                                 <p>{{ user.email }}</p>
                             </div>
-                        </div>
-
-                        <div class="info-row">
-                            <div class="info-item full">
-                                <label><i class="fa fa-phone"></i> Téléphone</label>
+                            <div class="detail-item full" @mouseenter="onHoverInfo('Téléphone', user.telephone)" @mouseleave="stopSpeaking">
+                                <label>TÉLÉPHONE</label>
                                 <p>{{ user.telephone || 'Non renseigné' }}</p>
                             </div>
-                        </div>
-
-                        <div class="action-buttons">
-                            <button @click="startEditing" class="btn btn-primary">
-                                <i class="fa fa-edit"></i> Modifier le Profil
-                            </button>
-                            <button @click="logout" class="btn btn-secondary">
-                                <i class="fa fa-sign-out"></i> Se Déconnecter
-                            </button>
                         </div>
                     </div>
 
                     <!-- Edit Form -->
-                    <div v-else class="info-edit">
+                    <div v-else class="card-omnia profile-edit">
                         <form @submit.prevent="saveProfile">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label><i class="fa fa-user"></i> Prénom *</label>
-                                    <input 
-                                        v-model="editForm.firstName" 
-                                        type="text" 
-                                        required 
-                                        placeholder="Votre prénom"
-                                    />
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <div class="form-group-omnia">
+                                        <label>PRÉNOM</label>
+                                        <input v-model="editForm.firstName" type="text" class="form-control-omnia">
+                                    </div>
                                 </div>
-                                <div class="form-group">
-                                    <label>Nom *</label>
-                                    <input 
-                                        v-model="editForm.lastName" 
-                                        type="text" 
-                                        required 
-                                        placeholder="Votre nom"
-                                    />
+                                <div class="col-md-6 mb-3">
+                                    <div class="form-group-omnia">
+                                        <label>NOM</label>
+                                        <input v-model="editForm.lastName" type="text" class="form-control-omnia">
+                                    </div>
                                 </div>
                             </div>
-
-                            <div class="form-group">
-                                <label><i class="fa fa-phone"></i> Téléphone</label>
-                                <input 
-                                    v-model="editForm.telephone" 
-                                    type="tel" 
-                                    placeholder="+216 XX XXX XXX"
-                                />
+                            <div class="form-group-omnia mb-4">
+                                <label>TÉLÉPHONE</label>
+                                <input v-model="editForm.telephone" type="tel" class="form-control-omnia">
                             </div>
-
-                            <div class="form-note">
-                                <i class="fa fa-info-circle"></i>
-                                L'adresse email ne peut pas être modifiée. Contactez l'administrateur si nécessaire.
-                            </div>
-
-                            <div class="action-buttons">
-                                <button type="submit" class="btn btn-success" :disabled="isLoading">
-                                    <span v-if="isLoading">
-                                        <i class="fa fa-spinner fa-spin"></i> Enregistrement...
-                                    </span>
-                                    <span v-else>
-                                        <i class="fa fa-check"></i> Enregistrer
-                                    </span>
-                                </button>
-                                <button type="button" @click="cancelEditing" class="btn btn-cancel">
-                                    <i class="fa fa-times"></i> Annuler
-                                </button>
-                            </div>
+                            <button type="submit" class="btn-omnia btn-primary" :disabled="isLoading">
+                                <span v-if="isLoading">CHARGEMENT...</span>
+                                <span v-else>SAUVEGARDER LES CHANGEMENTS</span>
+                            </button>
                         </form>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="quick-actions mt-5">
+                        <h3 class="mb-3">ACCÈS RAPIDES</h3>
+                        <div class="actions-grid">
+                            <router-link to="/ocr" class="action-card card-omnia" @mouseenter="onHoverQuickLink('Mes Ordonnances')" @mouseleave="stopSpeaking">
+                                <i class="fa fa-file-text"></i>
+                                <span>MES ORDONNANCES</span>
+                            </router-link>
+                            <router-link to="/donate" class="action-card card-omnia" @mouseenter="onHoverQuickLink('Faire un don')" @mouseleave="stopSpeaking">
+                                <i class="fa fa-heart"></i>
+                                <span>FAIRE UN DON</span>
+                            </router-link>
+                            <router-link to="/contact" class="action-card card-omnia" @mouseenter="onHoverQuickLink('Aide')" @mouseleave="stopSpeaking">
+                                <i class="fa fa-question-circle"></i>
+                                <span>BESOIN D'AIDE ?</span>
+                            </router-link>
+                        </div>
                     </div>
                 </div>
             </div>
+        </section>
 
-            <!-- Quick Links -->
-            <div class="quick-links">
-                <h3>Accès Rapide</h3>
-                <div class="links-grid">
-                    <router-link to="/ocr" class="link-card">
-                        <i class="fa fa-file-text"></i>
-                        <h4>Mes Ordonnances</h4>
-                        <p>Scanner et gérer vos ordonnances</p>
-                    </router-link>
-                    <router-link to="/actions" class="link-card">
-                        <i class="fa fa-heart"></i>
-                        <h4>Nos Actions</h4>
-                        <p>Découvrir nos actions humanitaires</p>
-                    </router-link>
-                    <router-link to="/contact" class="link-card">
-                        <i class="fa fa-envelope"></i>
-                        <h4>Contact</h4>
-                        <p>Nous contacter pour plus d'infos</p>
-                    </router-link>
-                </div>
-            </div>
-        </div>
+        <FaceCaptureModal 
+            v-if="isFaceModalOpen" 
+            @captured="handleFaceEnroll" 
+            @close="isFaceModalOpen = false" 
+        />
     </div>
 </template>
 
 <style scoped>
-.profile-page {
-    min-height: 100vh;
-    background: linear-gradient(135deg, #1E5A8E 0%, #2B7EC1 50%, #5FA3D8 100%);
-    padding: 40px 20px;
+.profile-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: var(--spacing-xxl);
 }
 
-.profile-container {
-    max-width: 900px;
-    margin: 0 auto;
-}
-
-.profile-header {
-    margin-bottom: 30px;
-}
-
-.header-content {
-    color: white;
-}
-
-.back-link {
-    color: white;
-    text-decoration: none;
-    font-size: 14px;
-    opacity: 0.9;
-    display: inline-block;
-    margin-bottom: 10px;
-    transition: opacity 0.3s;
-}
-
-.back-link:hover {
-    opacity: 1;
-}
-
-.profile-header h1 {
-    font-size: 36px;
-    font-weight: 700;
-    margin: 0;
-}
-
-.alert {
-    padding: 12px 16px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.alert-error {
-    background: #FFF5F5;
-    color: #D32F2F;
-    border: 1px solid #FFCDD2;
-}
-
-.alert-success {
-    background: #F0FFF4;
-    color: #2E7D32;
-    border: 1px solid #C8E6C9;
-}
-
-.profile-card {
-    background: white;
-    border-radius: 16px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-    overflow: hidden;
-    margin-bottom: 30px;
-}
-
-.avatar-section {
-    background: linear-gradient(135deg, #2B7EC1, #1E5A8E);
-    padding: 40px;
-    text-align: center;
-    color: white;
-}
-
-.avatar {
-    width: 120px;
-    height: 120px;
-    background: white;
+.avatar-circle {
+    width: 100px;
+    height: 100px;
+    background: var(--light-blue);
+    color: var(--primary-blue);
     border-radius: 50%;
-    margin: 0 auto 20px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    font-size: 40px;
+    margin: 0 auto var(--spacing-md);
+    border: 3px solid var(--primary-blue);
 }
 
-.avatar i {
-    font-size: 60px;
-    color: #2B7EC1;
+.bio-card h2 {
+    font-size: 20px;
+    margin-bottom: var(--spacing-xs);
+    color: var(--dark-blue);
 }
 
-.role-badge {
+.role-pill {
     display: inline-block;
-    padding: 8px 20px;
+    padding: 4px 12px;
     border-radius: 20px;
-    font-weight: 600;
-    font-size: 14px;
+    font-size: 12px;
+    font-weight: 800;
     text-transform: uppercase;
 }
 
-.info-section {
-    padding: 40px;
+.role-pill.citoyen { background: var(--light-blue); color: var(--primary-blue); }
+.role-pill.admin { background: #fee2e2; color: #991b1b; }
+
+.details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-lg);
 }
 
-.info-row {
-    display: flex;
-    gap: 20px;
-    margin-bottom: 24px;
-}
+.detail-item.full { grid-column: span 2; }
 
-.info-item {
-    flex: 1;
-}
-
-.info-item.full {
-    flex: 1 1 100%;
-}
-
-.info-item label {
+.detail-item label {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--text-muted);
     display: block;
-    font-size: 13px;
-    font-weight: 600;
-    color: #636E72;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
-.info-item label i {
-    color: #2B7EC1;
-    margin-right: 6px;
-}
-
-.info-item p {
+.detail-item p {
     font-size: 16px;
-    color: #2D3436;
-    margin: 0;
-    padding: 10px 0;
-}
-
-.form-row {
-    display: flex;
-    gap: 16px;
-}
-
-.form-group {
-    flex: 1;
-    margin-bottom: 20px;
-}
-
-.form-group label {
-    display: block;
-    font-size: 13px;
     font-weight: 600;
-    color: #2D3436;
-    margin-bottom: 6px;
+    color: var(--dark-blue);
+    padding: var(--spacing-sm);
+    background: #f8f9fa;
+    border-radius: var(--radius-sm);
 }
 
-.form-group label i {
-    color: #2B7EC1;
-    margin-right: 6px;
+.actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--spacing-md);
 }
 
-.form-group input {
-    width: 100%;
-    padding: 12px 14px;
-    border: 2px solid #E0E0E0;
-    border-radius: 8px;
-    font-size: 14px;
-    transition: border-color 0.3s;
-    box-sizing: border-box;
-}
-
-.form-group input:focus {
-    outline: none;
-    border-color: #2B7EC1;
-}
-
-.form-note {
-    background: #E8F4FD;
-    color: #1E5A8E;
-    padding: 12px 14px;
-    border-radius: 8px;
-    font-size: 13px;
-    margin-bottom: 20px;
-}
-
-.action-buttons {
+.action-card {
     display: flex;
-    gap: 12px;
-    margin-top: 30px;
-}
-
-.btn {
-    flex: 1;
-    padding: 12px 24px;
-    border: none;
-    border-radius: 8px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s;
-    display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-}
-
-.btn-primary {
-    background: linear-gradient(135deg, #2B7EC1, #1E5A8E);
-    color: white;
-}
-
-.btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(43, 126, 193, 0.4);
-}
-
-.btn-secondary {
-    background: #636E72;
-    color: white;
-}
-
-.btn-secondary:hover {
-    background: #4A5458;
-    transform: translateY(-2px);
-}
-
-.btn-success {
-    background: #4CAF50;
-    color: white;
-}
-
-.btn-success:hover:not(:disabled) {
-    background: #45A049;
-    transform: translateY(-2px);
-}
-
-.btn-success:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-}
-
-.btn-cancel {
-    background: #E0E0E0;
-    color: #2D3436;
-}
-
-.btn-cancel:hover {
-    background: #BDBDBD;
-}
-
-.quick-links {
-    background: white;
-    border-radius: 16px;
-    padding: 30px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-}
-
-.quick-links h3 {
-    font-size: 20px;
-    color: #2D3436;
-    margin-bottom: 20px;
-}
-
-.links-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-}
-
-.link-card {
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    padding: 24px;
-    border-radius: 12px;
+    padding: var(--spacing-lg);
     text-decoration: none;
-    text-align: center;
-    transition: all 0.3s;
-    border: 2px solid transparent;
+    transition: all 0.2s;
 }
 
-.link-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-    border-color: #2B7EC1;
+.action-card:hover {
+    background: var(--primary-blue);
+    color: white !important;
+    transform: translateY(-5px);
 }
 
-.link-card i {
-    font-size: 36px;
-    color: #2B7EC1;
-    margin-bottom: 12px;
+.action-card i {
+    font-size: 24px;
+    margin-bottom: 10px;
 }
 
-.link-card h4 {
-    font-size: 16px;
-    color: #2D3436;
-    margin-bottom: 6px;
+.action-card span {
+    font-size: 12px;
+    font-weight: 700;
 }
 
-.link-card p {
-    font-size: 13px;
-    color: #636E72;
-    margin: 0;
+.btn-error {
+    background: var(--error-red);
+    color: white;
 }
 
-@media (max-width: 768px) {
-    .info-row {
-        flex-direction: column;
-    }
-    
-    .action-buttons {
-        flex-direction: column;
-    }
-    
-    .form-row {
-        flex-direction: column;
-    }
+.alert-omnia {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+}
+.alert-omnia.success { background: #dcfce7; color: #166534; }
+.alert-omnia.error { background: #fee2e2; color: #991b1b; }
+
+@media (max-width: 992px) {
+    .profile-layout { grid-template-columns: 1fr; }
 }
 </style>

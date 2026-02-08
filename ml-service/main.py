@@ -13,10 +13,15 @@ from src.schemas import (
     BeneficiaryInput,
     VulnerabilityScoreOutput,
     BatchScoringRequest,
-    BatchScoringResponse
+    BatchScoringRequest,
+    BatchScoringResponse,
+    FaceEmbeddingResponse,
+    FaceMatchRequest,
+    FaceMatchResult
 )
 from src.services import ScoringService, PredictionService
 from src.ocr import OcrService
+from src.face_recognition import FaceRecognitionService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -26,25 +31,32 @@ logger = logging.getLogger(__name__)
 scoring_service: ScoringService = None
 prediction_service: PredictionService = None
 ocr_service: OcrService = None
+face_service: FaceRecognitionService = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize services on startup"""
-    global scoring_service, prediction_service, ocr_service
+    global scoring_service, prediction_service, ocr_service, face_service
     
     logger.info("Starting ML Microservice...")
     scoring_service = ScoringService(poverty_threshold=200.0)
     prediction_service = PredictionService(scoring_service)
     
+    # OCR Initialization
     try:
-        # Initialize EasyOCR with French and Arabic support relevant for Tunisia context
-        # defaulting to CPU for broad compatibility unless GPU is requested
         ocr_service = OcrService(languages=['fr', 'en']) 
         logger.info("OCR Service initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize OCR Service: {e}")
-        # Don't crash the whole service if OCR fails
+        
+    # Face Recognition Initialization
+    try:
+        # VGG-Face is robust. Distance metric: cosine
+        face_service = FaceRecognitionService(model_name="VGG-Face", distance_metric="cosine")
+        logger.info("Face Recognition Service initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize Face Recognition Service: {e}")
     
     logger.info("Services initialized successfully")
     
@@ -79,7 +91,8 @@ async def health_check():
         "status": "healthy",
         "service": "Omnia ML Service",
         "version": "1.0.0",
-        "ocr_available": ocr_service is not None
+        "ocr_available": ocr_service is not None,
+        "face_available": face_service is not None
     }
 
 
@@ -355,6 +368,73 @@ async def root():
         "docs": "/docs",
         "health": "/health"
     }
+
+
+# ============ Face Recognition ============
+@app.post(
+    "/face/embed",
+    response_model=FaceEmbeddingResponse,
+    tags=["Face"],
+    summary="Get face embedding vector",
+    description="Extracts 2622-d (VGG-Face) vector representation from face image"
+)
+async def get_face_embedding(file: UploadFile = File(...)):
+    if not face_service:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Face Recognition Service is not initialized"
+        )
+        
+    try:
+        contents = await file.read()
+        embedding = face_service.get_embedding(contents)
+        return {"embedding": embedding}
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Face embedding extraction error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal processing error"
+        )
+
+
+@app.post(
+    "/face/match",
+    response_model=FaceMatchResult,
+    tags=["Face"],
+    summary="Find best face match",
+    description="Compares target embedding against a list of candidates"
+)
+async def find_face_match(request: FaceMatchRequest):
+    if not face_service:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Face Recognition Service is not initialized"
+        )
+        
+    try:
+        # Convert Pydantic models to dicts for service
+        candidates_data = [c.model_dump() for c in request.candidates]
+        
+        match = face_service.find_best_match(
+            request.target_embedding,
+            candidates_data
+        )
+        
+        return {
+            "match_found": match is not None,
+            "best_match": match
+        }
+    except Exception as e:
+        logger.error(f"Face matching error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
 
 
 if __name__ == "__main__":

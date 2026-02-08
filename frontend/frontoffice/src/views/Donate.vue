@@ -1,208 +1,186 @@
 <script setup lang="ts">
-// Donate page
+import { useVoiceAssistant } from '@/composables/useVoiceAssistant'
+
+const { ttsEnabled, currentlySpeaking, speak, stopSpeaking } = useVoiceAssistant()
+
+const onHoverReason = () => speak("Pourquoi faire un don ? Votre soutien permet de financer nos projets humanitaires et de démultiplier notre impact sur le terrain.", 'reason')
+const onHoverBank = () => speak("Coordonnées bancaires pour virement. Titulaire : ASS OMNIA. RIB : 08 005 0100 820 219 940 17.", 'bank')
+const onHoverBreadcam = () => speak("Faire un don. Soutenez nos actions humanitaires.", 'bradcam')
 </script>
 
 <template>
-    <!-- header-start -->
-    <header>
-        <div class="header-area">
-            <div class="header-top_area">
-                <div class="container-fluid">
-                    <div class="row align-items-center">
-                        <div class="col-xl-5 col-md-12 col-lg-6">
-                            <div class="short_contact_list">
-                                <ul>
-                                    <li><a href="tel:+21698534849"><i class="fa fa-phone"></i> (+216) 98 534 849</a></li>
-                                    <li><a href="mailto:omniatn.charity@gmail.com"><i class="fa fa-envelope"></i> omniatn.charity@gmail.com</a></li>
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="col-xl-7 col-md-6 col-lg-6">
-                            <div class="d-none d-lg-flex justify-content-end align-items-center" style="gap: 15px;">
-                                <div class="social_media_links">
-                                    <a href="#"><i class="fa fa-facebook"></i></a>
-                                    <a href="#"><i class="fa fa-instagram"></i></a>
-                                    <a href="#"><i class="fa fa-linkedin"></i></a>
-                                </div>
-                                <div class="auth-buttons">
-                                    <router-link to="/login" class="btn-signin">Se Connecter</router-link>
-                                    <router-link to="/register" class="btn-signup">S'inscrire</router-link>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div id="sticky-header" class="main-header-area">
-                <div class="container-fluid">
-                    <div class="row align-items-center">
-                        <div class="col-xl-3 col-lg-3">
-                            <div class="logo">
-                                <router-link to="/" style="color: #fff; font-weight: bold; font-size: 32px; text-decoration: none;">
-                                    Omnia
-                                </router-link>
-                            </div>
-                        </div>
-                        <div class="col-xl-9 col-lg-9">
-                            <div class="main-menu">
-                                <nav>
-                                    <ul id="navigation">
-                                        <li><router-link to="/">ACCUEIL</router-link></li>
-                                        <li><router-link to="/bureau">BUREAU</router-link></li>
-                                        <li><router-link to="/actions">ACTIONS</router-link></li>
-                                        <li><router-link to="/galerie">GALERIE</router-link></li>
-                                        <li><router-link to="/partners">NOS PARTENAIRES</router-link></li>
-                                        <li><router-link to="/contact">CONTACT</router-link></li>
-                                    </ul>
-                                </nav>
-                                <div class="Appointment">
-                                    <div class="book_btn d-none d-lg-block">
-                                        <router-link to="/donate">FAIRE UN DON</router-link>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-12">
-                            <div class="mobile_menu d-block d-lg-none"></div>
-                        </div>
-                    </div>
-                </div>
+    <div class="donate-page">
+        <!-- Page Header -->
+        <div class="page-header-omnia" @mouseenter="onHoverBreadcam" @mouseleave="stopSpeaking">
+            <div class="container-omnia">
+                <h1>SOUTENEZ NOTRE CAUSE</h1>
+                <p>Chaque geste compte. Votre générosité est le moteur de nos actions.</p>
             </div>
         </div>
-    </header>
-    <!-- header-end -->
 
-    <!-- bradcam_area_start -->
-    <div class="bradcam_area breadcam_bg overlay d-flex align-items-center justify-content-center">
-        <div class="container">
-            <div class="row">
-                <div class="col-xl-12">
-                    <div class="bradcam_text text-center">
-                        <h3>FAIRE UN DON</h3>
-                        <p><router-link to="/" style="color: rgba(255,255,255,0.8); text-decoration: none;">ACCUEIL</router-link> / FAIRE UN DON</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- bradcam_area_end -->
-
-    <!-- donate_area_start -->
-    <div class="section_padding">
-        <div class="container">
-            <div class="row">
-                <!-- Left Column: Why Donate? -->
-                <div class="col-lg-6 mb-5 mb-lg-0">
-                    <div class="donate_content">
-                        <h3 class="mb-4" style="color: var(--primary-blue, #2B7EC1); font-weight: 700;">POURQUOI NOUS FAIRE UN DON ?</h3>
-                        <p class="mb-4">
-                            <strong>Un simple don</strong> permet de démultiplier l'efficacité des actions de l'association.
-                        </p>
-                        <p class="mb-4">
-                            Cela va nous permettre de réaliser de nombreuses choses telles que financer divers projets ou payer des salariés.
-                        </p>
-                        <p>
-                            En faisant un don, vous aidez au développement de l'association, et vous nous apportez donc un soutien indispensable.
-                        </p>
+        <section class="section-padding container-omnia">
+            <div class="donate-layout">
+                <!-- Why Donate -->
+                <div class="donate-info" @mouseenter="onHoverReason" @mouseleave="stopSpeaking">
+                    <div class="card-omnia h-100" :class="{ 'tts-highlight': currentlySpeaking === 'reason' }">
+                        <div class="icon-box"><i class="fa fa-heart"></i></div>
+                        <h2>Pourquoi faire un don ? <i v-if="ttsEnabled && currentlySpeaking === 'reason'" class="fa fa-assistive-listening-systems tts-pulse-icon"></i></h2>
+                        <div class="section-line left"></div>
+                        <p><strong>Un simple don</strong> permet de démultiplier l'efficacité des actions de l'association Omnia sur le terrain.</p>
+                        <p>Grâce à votre contribution, nous pouvons :</p>
+                        <ul>
+                            <li>Financer des kits médicaux et scolaires</li>
+                            <li>Soutenir les familles en difficulté</li>
+                            <li>Assurer la logistique de nos missions humanitaires</li>
+                            <li>Développer de nouveaux projets d'entraide</li>
+                        </ul>
+                        <p class="mt-4">En faisant un don, vous devenez un maillon essentiel de notre chaîne de solidarité.</p>
                     </div>
                 </div>
 
-                <!-- Right Column: How to Donate? -->
-                <div class="col-lg-6">
-                    <div class="donate_content">
-                        <h3 class="mb-4" style="color: var(--primary-blue, #2B7EC1); font-weight: 700;">COMMENT FAIRE UN DON ?</h3>
-                        <p class="mb-4 font-weight-bold">Par virement bancaire :</p>
+                <!-- How to Donate -->
+                <div class="donate-method" @mouseenter="onHoverBank" @mouseleave="stopSpeaking">
+                    <div class="card-omnia h-100 highlight-card" :class="{ 'tts-highlight': currentlySpeaking === 'bank' }">
+                        <div class="icon-box"><i class="fa fa-university"></i></div>
+                        <h2>Comment faire un don ? <i v-if="ttsEnabled && currentlySpeaking === 'bank'" class="fa fa-assistive-listening-systems tts-pulse-icon"></i></h2>
+                        <div class="section-line left"></div>
+                        <p class="mb-4">Le moyen le plus direct est le <strong>virement bancaire</strong> :</p>
                         
-                        <div class="bank-details" style="background-color: #f9f9ff; padding: 30px; border-radius: 5px; border-left: 5px solid var(--primary-blue, #2B7EC1);">
-                            <p class="mb-2"><strong>Nom du compte :</strong> ASS OMNIA</p>
-                            <p class="mb-2"><strong>RIB :</strong> 08005010082021994017</p>
-                            <p class="mb-2"><strong>IBAN :</strong> TN5908005010082021994017</p>
-                            <p class="mb-2"><strong>BIC :</strong> BIATTNTT</p>
-                            <p class="mb-0"><strong>Agence :</strong> BIAT Avenue Mohmed V</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- donate_area_end -->
-
-    <!-- footer_start -->
-    <footer class="footer">
-        <div class="footer_top">
-            <div class="container">
-                <div class="row">
-                    <div class="col-xl-4 col-md-6 col-lg-4">
-                        <div class="footer_widget">
-                            <h3 class="footer_title" style="border-left: 3px solid var(--primary-blue, #2B7EC1); padding-left: 12px;">À PROPOS</h3>
-                            <p class="address_text">
-                                Omnia est une Association humanitaire à but non lucratif régie par la loi de 2011,
-                                née de la volonté de jeunes Tunisiens désirant réaliser des missions humanitaires.
-                            </p>
-                            <div class="socail_links">
-                                <ul>
-                                    <li><a href="#"><i class="ti-facebook"></i></a></li>
-                                    <li><a href="#"><i class="fa fa-instagram"></i></a></li>
-                                </ul>
+                        <div class="bank-details-box">
+                            <div class="detail-row">
+                                <span class="label">TITULAIRE</span>
+                                <span class="value">ASSOCIATION OMNIA</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">RIB (TUNISIE)</span>
+                                <span class="value">08 005 0100 820 219 940 17</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">IBAN</span>
+                                <span class="value">TN59 0800 5010 0820 2199 4017</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">CODE BIC / SWIFT</span>
+                                <span class="value">BIAT NTT T</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">AGENCE</span>
+                                <span class="value">BIAT AVENUE MOHAMED V, TUNIS</span>
                             </div>
                         </div>
-                    </div>
-                    <div class="col-xl-4 col-md-6 col-lg-4">
-                        <div class="footer_widget">
-                            <h3 class="footer_title" style="border-left: 3px solid var(--primary-blue, #2B7EC1); padding-left: 12px;">SITE MAP</h3>
-                            <ul class="links">
-                                <li><a href="#">Acceuil</a></li>
-                                <li><a href="#">Bureau</a></li>
-                                <li><a href="#">Action</a></li>
-                                <li><router-link to="/donate">Faire un don</router-link></li>
-                                <li><a href="#">Nous Rejoindre</a></li>
-                                <li><a href="#">Contact</a></li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div class="col-xl-4 col-md-6 col-lg-4">
-                        <div class="footer_widget">
-                            <h3 class="footer_title" style="border-left: 3px solid var(--primary-blue, #2B7EC1); padding-left: 12px;">NEWSLETTER</h3>
-                            <p>Abonnez vous à notre newsletter pour suivre nos actions.</p>
-                            <form action="#" class="newsletter_form">
-                                <input type="email" placeholder="Votre e-mail et appuyez sur Entrée" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; border-radius: 4px;">
-                            </form>
+
+                        <div class="info-note mt-4">
+                            <i class="fa fa-info-circle"></i>
+                            Une attestation de don peut vous être délivrée sur simple demande par email.
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="copy-right_text" style="background: var(--primary-blue, #2B7EC1);">
-            <div class="container">
-                <div class="row">
-                    <div class="col-xl-12">
-                        <p class="copy_right text-center" style="color: #fff; padding: 15px 0;">
-                            Copyright &copy; {{ new Date().getFullYear() }} Association Omnia
-                        </p>
-                    </div>
+        </section>
+
+        <!-- Transparency Section -->
+        <section class="section-padding bg-light-blue">
+            <div class="container-omnia text-center">
+                <div class="transparency-content">
+                    <i class="fa fa-shield fa-3x mb-3 text-primary"></i>
+                    <h2>TRANSPARENCE TOTALE</h2>
+                    <p class="max-600 mx-auto">100% de vos dons sont affectés aux projets de terrain. Nous publions régulièrement les rapports d'utilisation des fonds pour chaque mission.</p>
                 </div>
             </div>
-        </div>
-    </footer>
-    <!-- footer_end -->
+        </section>
+    </div>
 </template>
 
 <style scoped>
-.breadcam_bg {
-    background-image: url(/img/banner/bradcam.png);
-    background-size: cover;
-    background-position: center;
-    min-height: 350px;
+.donate-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-xxl);
 }
 
-.donate_content p {
-    font-size: 16px;
-    line-height: 1.8;
-    color: #555;
+.icon-box {
+    font-size: 32px;
+    color: var(--primary-blue);
+    margin-bottom: var(--spacing-md);
 }
 
-.bank-details p {
+.section-line.left { margin-left: 0; margin-bottom: var(--spacing-lg); }
+
+.donate-info ul {
+    list-style: none;
+    padding: 0;
+    margin-top: var(--spacing-md);
+}
+
+.donate-info p {
+    font-size: 1.25rem;
+    line-height: 1.6;
+}
+
+.donate-info ul li {
+    padding-left: 25px;
+    position: relative;
+    margin-bottom: 12px;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.donate-info ul li::before {
+    content: "\f00c";
+    font-family: FontAwesome;
+    position: absolute;
+    left: 0;
+    color: var(--success-green);
+}
+
+.highlight-card {
+    border: 2px solid var(--primary-blue);
+    background: #fdfdfd;
+}
+
+.bank-details-box {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+}
+
+.detail-row {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+}
+
+.detail-row:last-child { margin-bottom: 0; }
+
+.detail-row .label {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--secondary-blue);
+    letter-spacing: 0.5px;
+}
+
+.detail-row .value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--dark-blue);
+    font-family: 'Space Mono', monospace;
+}
+
+.info-note {
+    background: #e8f4fd;
+    color: #1e5a8e;
+    padding: var(--spacing-md);
+    border-radius: var(--radius-sm);
     font-size: 15px;
-    color: #333;
+    font-weight: 600;
+}
+
+.bg-light-blue { background: var(--light-blue); }
+.text-primary { color: var(--primary-blue); }
+.max-600 { max-width: 600px; margin: 0 auto; }
+
+@media (max-width: 992px) {
+    .donate-layout { grid-template-columns: 1fr; }
 }
 </style>

@@ -7,10 +7,13 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 
+import { HttpModule } from '@nestjs/axios';
+
 @Module({
     imports: [
         UsersModule,
         PassportModule,
+        HttpModule,
         JwtModule.registerAsync({
             imports: [ConfigModule],
             useFactory: async (configService: ConfigService) => ({

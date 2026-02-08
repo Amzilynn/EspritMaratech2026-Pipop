@@ -1,0 +1,263 @@
+/* 
+  OMNIA DESIGN SYSTEM & ACCESSIBILITY 
+  Aligned with WCAG 2.1 Level AA
+*/
+
+:root {
+  /* Colors */
+  --primary-blue: #2B7EC1;
+  --secondary-blue: #1E5A8E;
+  --accent-gold: #F5A623;
+  --light-blue: #E8F4FD;
+  --dark-blue: #163B5C;
+  --success-green: #2E7D32;
+  --error-red: #D32F2F;
+  --warning-orange: #EF6C00;
+
+  /* Neutrals */
+  --white: #FFFFFF;
+  --bg-light: #F8FBFE;
+  --text-dark: #2D3436;
+  --text-muted: #636E72;
+  --border-color: #E0E0E0;
+
+  /* Typography */
+  --font-main: 'Outfit', 'Inter', sans-serif;
+  --fs-base: 18px;
+  --fs-h1: 3rem;
+  --fs-h2: 2.25rem;
+  --fs-h3: 1.75rem;
+  --fs-small: 1rem;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 40px;
+  --spacing-xxl: 64px;
+
+  /* Shadows & Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.15);
+
+  /* Accessibility */
+  --focus-ring: 3px solid var(--accent-gold);
+}
+
+/* Base Accessibility Styles */
+body {
+  font-family: var(--font-main);
+  font-size: var(--fs-base);
+  color: var(--text-dark);
+  line-height: 1.6;
+  background-color: var(--bg-light);
+  margin: 0;
+  padding: 0;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--dark-blue);
+  font-weight: 700;
+  margin-bottom: var(--spacing-md);
+}
+
+h1 {
+  font-size: var(--fs-h1);
+  line-height: 1.2;
+}
+
+h2 {
+  font-size: var(--fs-h2);
+}
+
+h3 {
+  font-size: var(--fs-h3);
+}
+
+/* Buttons - Large enough for touch targets (min 44x44px) */
+.btn-omnia {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+  cursor: pointer;
+  border: none;
+  min-height: 48px;
+}
+
+.btn-primary {
+  background-color: var(--primary-blue);
+  color: var(--white);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: var(--secondary-blue);
+  color: var(--white);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-accent {
+  background-color: var(--accent-gold);
+  color: var(--white);
+}
+
+.btn-outline {
+  background-color: transparent;
+  border: 2px solid var(--primary-blue);
+  color: var(--primary-blue);
+}
+
+/* Forms */
+.form-group-omnia {
+  margin-bottom: var(--spacing-lg);
+}
+
+.form-group-omnia label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-dark);
+}
+
+.form-control-omnia {
+  width: 100%;
+  padding: var(--spacing-md);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-base);
+  transition: border-color 0.2s;
+}
+
+.form-control-omnia:focus {
+  outline: none;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(43, 126, 193, 0.2);
+}
+
+/* Cards */
+.card-omnia {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+}
+
+/* Accessibility Focus */
+:focus-visible {
+  outline: var(--focus-ring) !important;
+  outline-offset: 2px;
+}
+
+/* Screen Reader Only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* TTS Utility Classes */
+.tts-highlight {
+  background-color: var(--light-blue) !important;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 15px rgba(43, 126, 193, 0.15);
+}
+
+.tts-pulse-icon {
+  color: var(--success-green);
+  animation: tts-pulse 1.5s infinite;
+}
+
+@keyframes tts-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+}
+
+/* Layout Utilities */
+.container-omnia {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-lg);
+}
+
+.section-padding {
+  padding: var(--spacing-xxl) 0;
+}
+
+.page-header-omnia {
+  background: linear-gradient(135deg, var(--secondary-blue) 0%, var(--primary-blue) 100%);
+  color: var(--white);
+  padding: var(--spacing-xxl) 0;
+  text-align: center;
+}
+
+.page-header-omnia h1 {
+  color: var(--white);
+  margin-bottom: var(--spacing-sm);
+}
+
+.page-header-omnia p {
+  font-size: 1.4rem;
+  opacity: 1;
+  font-weight: 500;
+  color: #FFFFFF;
+}
+
+/* Lists & Tables */
+.table-omnia {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-omnia th {
+  background-color: var(--light-blue);
+  color: var(--secondary-blue);
+  text-align: left;
+  padding: var(--spacing-md);
+  font-weight: 700;
+}
+
+.table-omnia td {
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.empty-state {
+  text-align: center;
+  padding: var(--spacing-xxl);
+  color: var(--text-muted);
+}

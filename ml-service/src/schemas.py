@@ -63,4 +63,20 @@ class NeedsPrediction(BaseModel):
     food_aid_needed: float = Field(description="Estimated number of families needing food aid")
     medical_aid_needed: float = Field(description="Estimated families needing medical aid")
     housing_interventions_needed: float = Field(description="Estimated families needing housing intervention")
-    predictions_based_on: str = Field(description="Data/patterns used for prediction")
+class FaceEmbeddingResponse(BaseModel):
+    """Response generic for embedding extraction"""
+    embedding: List[float]
+
+class CandidateFace(BaseModel):
+    id: str
+    embedding: List[float]
+
+class FaceMatchRequest(BaseModel):
+    """Request to find best face match"""
+    target_embedding: List[float]
+    candidates: List[CandidateFace]
+
+class FaceMatchResult(BaseModel):
+    """Result of face matching"""
+    match_found: bool
+    best_match: Optional[Dict[str, float]] = None # {'id': '123', 'score': 0.95}

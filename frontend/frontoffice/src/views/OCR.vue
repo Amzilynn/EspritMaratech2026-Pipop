@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { apiFetch } from '@/services/api'
+import { useVoiceAssistant } from '@/composables/useVoiceAssistant'
+
+const { ttsEnabled, currentlySpeaking, speak, stopSpeaking } = useVoiceAssistant()
+
+// Voice Handlers
+const onHoverScanner = () => speak("Zone de téléchargement. Prenez une photo de votre ordonnance.", 'scanner-zone')
+const onHoverResult = (text: string) => speak(`Contenu extrait : ${text}`, 'scan-result')
+const onHoverHistoryItem = (notes: string, date: string) => speak(`Ordonnance : ${notes}. Enregistrée le ${date}.`, 'history-' + notes)
+const onHoverBreadcam = () => speak("Scanner d'ordonnances médicales.", 'bradcam')
 
 const selectedFile = ref<File | null>(null)
 const previewUrl = ref<string>('')
@@ -9,8 +18,6 @@ const isLoading = ref(false)
 const errorMsg = ref('')
 const successMsg = ref('')
 const notes = ref('')
-
-// History of prescriptions
 const myPrescriptions = ref<any[]>([])
 
 onMounted(async () => {
@@ -22,68 +29,47 @@ async function loadMyPrescriptions() {
         const response = await apiFetch('/prescriptions/my-prescriptions')
         myPrescriptions.value = response
     } catch (e) {
-        console.error('Failed to load prescriptions', e)
+        console.error(e)
     }
 }
 
 function handleFileSelect(event: Event) {
     const target = event.target as HTMLInputElement
     const file = target.files?.[0]
-    
     if (file) {
         if (!file.type.startsWith('image/')) {
-            errorMsg.value = 'Veuillez sélectionner une image valide (photo de votre ordonnance)'
+            errorMsg.value = 'Sélectionnez une image valide.'
             return
         }
-        
         selectedFile.value = file
         previewUrl.value = URL.createObjectURL(file)
         extractedText.value = ''
         errorMsg.value = ''
-        successMsg.value = ''
     }
 }
 
 async function scanAndSave() {
-    if (!selectedFile.value) {
-        errorMsg.value = 'Veuillez d\'abord prendre une photo de votre ordonnance'
-        return
-    }
-    
+    if (!selectedFile.value) return
     isLoading.value = true
     errorMsg.value = ''
     successMsg.value = ''
-    
     try {
         const formData = new FormData()
         formData.append('file', selectedFile.value)
         formData.append('notes', notes.value || 'Ordonnance numérisée')
-        
         const token = localStorage.getItem('access_token')
-        
         const response = await fetch('http://localhost:3000/prescriptions/scan', {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            },
+            headers: { 'Authorization': `Bearer ${token}` },
             body: formData
         })
-        
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}))
-            throw new Error(errorData.message || 'Erreur lors du traitement de l\'ordonnance')
-        }
-        
+        if (!response.ok) throw new Error('Traitement échoué')
         const data = await response.json()
         extractedText.value = data.extractedText
-        successMsg.value = 'Ordonnance analysée et sauvegardée avec succès !'
-        
-        // Reload history
+        successMsg.value = 'Ordonnance enregistrée !'
         await loadMyPrescriptions()
-        
     } catch (err: any) {
-        console.error('Scan Error:', err)
-        errorMsg.value = err.message || 'Une erreur est survenue lors de l\'envoi'
+        errorMsg.value = err.message
     } finally {
         isLoading.value = false
     }
@@ -93,428 +79,240 @@ function clearImage() {
     selectedFile.value = null
     previewUrl.value = ''
     extractedText.value = ''
-    errorMsg.value = ''
-    successMsg.value = ''
     notes.value = ''
 }
 
-function formatDate(dateString: string) {
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    })
+function formatDate(date: string) {
+    return new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 </script>
 
 <template>
-    <div class="prescription-page">
-        <div class="container">
-            <!-- Header with Back Link -->
-            <div class="header-section text-center">
-                 <router-link to="/profile" class="back-link">
-                    <i class="fa fa-arrow-left"></i> Retour au Profil
-                </router-link>
-                <h1>💊 Mon Scanner d'Ordonnances</h1>
-                <p>Numérisez vos ordonnances médicales pour les conserver en sécurité</p>
-            </div>
-
-            <div class="row">
-                <!-- Scanner Section -->
-                <div class="col-lg-7 mb-4">
-                    <div class="card scanner-card">
-                        <div class="card-header">
-                            <h3><i class="fa fa-camera"></i> Nouvelle Analyse</h3>
-                        </div>
-                        <div class="card-body">
-                            <div v-if="errorMsg" class="alert alert-danger">
-                                <i class="fa fa-exclamation-triangle"></i> {{ errorMsg }}
-                            </div>
-
-                            <div v-if="successMsg" class="alert alert-success">
-                                <i class="fa fa-check-circle"></i> {{ successMsg }}
-                            </div>
-
-                            <div v-if="!previewUrl" class="upload-zone">
-                                <input 
-                                    type="file" 
-                                    id="prescriptionFile" 
-                                    accept="image/*" 
-                                    @change="handleFileSelect"
-                                    class="file-input"
-                                />
-                                <label for="prescriptionFile" class="upload-label">
-                                    <div class="icon-circle">
-                                        <i class="fa fa-camera"></i>
-                                    </div>
-                                    <h4>Prendre une photo</h4>
-                                    <p>ou choisir depuis la galerie</p>
-                                </label>
-                            </div>
-
-                            <div v-else class="preview-zone">
-                                <div class="image-container">
-                                    <img :src="previewUrl" alt="Ordonnance" />
-                                    <button @click="clearImage" class="btn-remove" title="Supprimer">
-                                        <i class="fa fa-times"></i>
-                                    </button>
-                                </div>
-                                
-                                <div class="form-group mt-3">
-                                    <label>Ajouter une note (optionnel)</label>
-                                    <input 
-                                        type="text"
-                                        v-model="notes" 
-                                        class="form-control" 
-                                        placeholder="Ex: Grippe Hiver 2024"
-                                    />
-                                </div>
-
-                                <div class="actions mt-3">
-                                    <button 
-                                        @click="scanAndSave" 
-                                        class="btn btn-primary btn-lg w-100"
-                                        :disabled="isLoading"
-                                    >
-                                        <span v-if="isLoading">
-                                            <i class="fa fa-spinner fa-spin"></i> Analyse en cours...
-                                            <small class="d-block" style="font-size: 0.8rem; font-weight: normal;">(Cela peut prendre quelques secondes)</small>
-                                        </span>
-                                        <span v-else>
-                                            <i class="fa fa-magic"></i> Analyser et Enregistrer
-                                        </span>
-                                    </button>
-                                </div>
-                                
-                                <div v-if="extractedText" class="result-box mt-4">
-                                    <h5><i class="fa fa-file-text-o"></i> Contenu détecté :</h5>
-                                    <div class="textarea-container">
-                                        <textarea class="form-control result-text" rows="6" readonly>{{ extractedText }}</textarea>
-                                    </div>
-                                    <p class="text-muted mt-2"><small>Ce texte a été extrait automatiquement par notre IA.</small></p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- History Section -->
-                <div class="col-lg-5">
-                    <div class="card history-card">
-                        <div class="card-header">
-                            <h3><i class="fa fa-history"></i> Mes Ordonnances</h3>
-                        </div>
-                        <div class="card-body p-0">
-                            <div v-if="myPrescriptions.length === 0" class="empty-state">
-                                <i class="fa fa-folder-open-o"></i>
-                                <p>Aucune ordonnance enregistrée</p>
-                            </div>
-                            <div v-else class="prescription-list">
-                                <div v-for="p in myPrescriptions" :key="p.id" class="prescription-item">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <h5 class="mb-1">{{ p.notes || 'Ordonnance sans titre' }}</h5>
-                                            <small class="text-muted">
-                                                <i class="fa fa-calendar"></i> {{ formatDate(p.createdAt) }}
-                                            </small>
-                                        </div>
-                                        <div class="icon-file">
-                                            <i class="fa fa-file-text-o"></i>
-                                        </div>
-                                    </div>
-                                    <div class="item-preview mt-2">
-                                        {{ p.extractedText ? p.extractedText.substring(0, 80) + '...' : 'Aucun texte extrait' }}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+    <div class="ocr-page">
+        <!-- Page Header -->
+        <div class="page-header-omnia" @mouseenter="onHoverBreadcam" @mouseleave="stopSpeaking">
+            <div class="container-omnia">
+                <h1>SCANNER MÉDICAL</h1>
+                <p>Numérisez vos ordonnances pour un suivi santé simplifié.</p>
             </div>
         </div>
+
+        <section class="section-padding container-omnia">
+            <div class="ocr-layout">
+                <!-- Main Scanner -->
+                <div class="ocr-main">
+                    <div class="card-omnia scanner-card">
+                        <div class="scanner-header">
+                            <h2><i class="fa fa-plus-square"></i> NOUVELLE ANALYSE</h2>
+                        </div>
+
+                        <div v-if="errorMsg" class="alert-omnia error">{{ errorMsg }}</div>
+                        <div v-if="successMsg" class="alert-omnia success">{{ successMsg }}</div>
+
+                        <div v-if="!previewUrl" class="upload-area" @mouseenter="onHoverScanner" @mouseleave="stopSpeaking" :class="{ 'tts-highlight': currentlySpeaking === 'scanner-zone' }">
+                            <input type="file" id="fileIn" accept="image/*" @change="handleFileSelect" class="sr-only">
+                            <label for="fileIn" class="upload-label">
+                                <div class="upload-icon"><i class="fa fa-camera"></i></div>
+                                <span>Prendre une photo de l'ordonnance <i v-if="ttsEnabled && currentlySpeaking === 'scanner-zone'" class="fa fa-assistive-listening-systems tts-pulse-icon"></i></span>
+                                <small>ou choisir un fichier local</small>
+                            </label>
+                        </div>
+
+                        <div v-else class="preview-area">
+                            <div class="preview-container">
+                                <img :src="previewUrl" alt="Aperçu de l'ordonnance">
+                                <button class="btn-clear" @click="clearImage"><i class="fa fa-times"></i></button>
+                            </div>
+
+                            <div class="form-group-omnia mt-4">
+                                <label>Titre / Note (Ex: Ophtalmo Janvier 2024)</label>
+                                <input v-model="notes" type="text" class="form-control-omnia" placeholder="Libellé de l'ordonnance">
+                            </div>
+
+                            <button 
+                                class="btn-omnia btn-primary w-100 mt-3" 
+                                @click="scanAndSave" 
+                                :disabled="isLoading"
+                            >
+                                <span v-if="isLoading"><i class="fa fa-spinner fa-spin"></i> ANALYSE EN COURS...</span>
+                                <span v-else><i class="fa fa-magic"></i> ANALYSER & ENREGISTRER</span>
+                            </button>
+
+                            <div v-if="extractedText" class="result-area mt-4" @mouseenter="onHoverResult(extractedText)" @mouseleave="stopSpeaking">
+                                <h3>TEXTE EXTRAIT <i v-if="ttsEnabled && currentlySpeaking === 'scan-result'" class="fa fa-assistive-listening-systems tts-pulse-icon"></i></h3>
+                                <div class="result-box">
+                                    {{ extractedText }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History -->
+                <aside class="ocr-sidebar">
+                    <div class="card-omnia history-card">
+                        <div class="sidebar-header">
+                            <h2>HISTORIQUE</h2>
+                        </div>
+                        <div class="history-list">
+                            <div v-if="myPrescriptions.length === 0" class="empty-history">
+                                Aucune ordonnance trouvée.
+                            </div>
+                            <div 
+                                v-for="p in myPrescriptions" 
+                                :key="p.id" 
+                                class="history-item"
+                                @mouseenter="onHoverHistoryItem(p.notes, formatDate(p.createdAt))"
+                                @mouseleave="stopSpeaking"
+                                :class="{ 'tts-highlight': currentlySpeaking === 'history-' + p.notes }"
+                            >
+                                <div class="h-icon"><i class="fa fa-file-text"></i></div>
+                                <div class="h-info">
+                                    <h4>{{ p.notes || 'Sans titre' }} <i v-if="ttsEnabled && currentlySpeaking === 'history-' + p.notes" class="fa fa-assistive-listening-systems tts-pulse-icon"></i></h4>
+                                    <span>{{ formatDate(p.createdAt) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </section>
     </div>
 </template>
 
 <style scoped>
-.prescription-page {
-    /* Updated to match Profile.vue blue gradient */
-    background: linear-gradient(135deg, #1E5A8E 0%, #2B7EC1 50%, #5FA3D8 100%);
-    min-height: 100vh;
-    padding: 40px 0;
+.ocr-layout {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: var(--spacing-xl);
 }
 
-.header-section {
-    margin-bottom: 40px;
-    color: white;
+.scanner-header, .sidebar-header {
+    margin-bottom: var(--spacing-lg);
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: var(--spacing-sm);
 }
 
-.header-section h1 {
-    color: white;
-    font-weight: 700;
-    margin-bottom: 10px;
+.scanner-header h2, .sidebar-header h2 {
+    font-size: 24px;
+    color: var(--dark-blue);
+    font-weight: 800;
 }
 
-.header-section p {
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 1.1rem;
-}
-
-.back-link {
-    color: rgba(255, 255, 255, 0.8);
-    text-decoration: none;
-    display: inline-block;
-    margin-bottom: 15px;
-    transition: color 0.3s;
-}
-
-.back-link:hover {
-    color: white;
-}
-
-.card {
-    border: none;
-    border-radius: 16px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-    background: white;
-    overflow: hidden;
-    height: 100%;
-}
-
-.card-header {
-    background: white;
-    border-bottom: 1px solid #eee;
-    padding: 20px 25px;
-}
-
-.card-header h3 {
-    margin: 0;
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #2c3e50;
-}
-
-.card-body {
-    padding: 25px;
-}
-
-/* Scanner Styles */
-.upload-zone {
-    border: 2px dashed #cbd5e0;
-    border-radius: 12px;
-    background: #f8fafc;
-    transition: all 0.3s ease;
+.upload-area {
+    border: 3px dashed var(--border-color);
+    padding: var(--spacing-xxl);
     text-align: center;
-    padding: 40px 20px;
+    border-radius: var(--radius-lg);
     cursor: pointer;
-}
-
-.upload-zone:hover {
-    border-color: #2B7EC1;
-    background: #ebf8ff;
-}
-
-.file-input {
-    display: none;
-}
-
-.upload-label {
-    cursor: pointer;
-    display: block;
-    width: 100%;
-}
-
-.icon-circle {
-    width: 80px;
-    height: 80px;
-    background: #e2e8f0;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 15px;
-    color: #718096;
-    font-size: 32px;
+    background: var(--light-blue);
     transition: all 0.3s;
 }
 
-.upload-zone:hover .icon-circle {
-    background: #2B7EC1;
-    color: white;
+.upload-area:hover {
+    border-color: var(--primary-blue);
+    background: white;
 }
 
-.image-container {
+.upload-icon {
+    font-size: 40px;
+    color: var(--primary-blue);
+    margin-bottom: var(--spacing-md);
+}
+
+.upload-label span {
+    display: block;
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--secondary-blue);
+}
+
+.preview-container {
     position: relative;
-    border-radius: 10px;
+    border-radius: var(--radius-lg);
     overflow: hidden;
     background: #000;
-    margin-bottom: 15px;
 }
 
-.image-container img {
+.preview-container img {
     width: 100%;
-    max-height: 300px;
+    max-height: 400px;
     object-fit: contain;
-    display: block;
 }
 
-.btn-remove {
+.btn-clear {
     position: absolute;
     top: 10px;
     right: 10px;
-    background: rgba(220, 53, 69, 0.9);
+    background: var(--error-red);
     color: white;
     border: none;
-    width: 32px;
-    height: 32px;
+    width: 35px;
+    height: 35px;
     border-radius: 50%;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.2s;
 }
 
-.btn-remove:hover {
-    transform: scale(1.1);
-}
-
-/* Action Button */
-.btn-primary {
-    background: linear-gradient(135deg, #1E5A8E 0%, #2B7EC1 100%);
-    border: none;
-    border-radius: 10px;
-    padding: 14px;
-    font-weight: 600;
-    font-size: 1.1rem;
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.btn-primary:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(30, 90, 142, 0.4);
-}
-
-.btn-primary:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-}
-
-/* History List */
-.empty-state {
-    padding: 40px;
-    text-align: center;
-    color: #a0aec0;
-}
-
-.empty-state i {
-    font-size: 48px;
-    margin-bottom: 15px;
-    color: #cbd5e0;
-    display: block;
-}
-
-.prescription-list {
-    max-height: 500px;
-    overflow-y: auto;
-}
-
-.prescription-item {
-    padding: 20px;
-    border-bottom: 1px solid #f0f0f0;
-    transition: background 0.2s;
-    cursor: pointer;
-}
-
-.prescription-item:hover {
-    background: #f8fafc;
-}
-
-.prescription-item:last-child {
-    border-bottom: none;
-}
-
-.prescription-item h5 {
-    font-size: 1rem;
-    font-weight: 600;
-    color: #2d3748;
-}
-
-.icon-file {
-    color: #2B7EC1;
-    font-size: 1.2rem;
-}
-
-.item-preview {
-    font-size: 0.85rem;
-    color: #718096;
-    background: #edf2f7;
-    padding: 8px 12px;
-    border-radius: 6px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.result-area h3 {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--primary-blue);
+    margin-bottom: 12px;
 }
 
 .result-box {
-    background: #f0fff4;
-    border: 1px solid #c6f6d5;
-    border-radius: 12px;
-    padding: 20px;
+    background: #f8f9fa;
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-family: 'Space Mono', monospace;
+    font-size: 16px;
+    font-weight: 500;
+    max-height: 200px;
+    overflow-y: auto;
+    color: var(--text-dark);
 }
 
-.result-box h5 {
-    color: #2f855a;
-    font-size: 1rem;
-    margin-bottom: 15px;
-    font-weight: 600;
+.history-list {
+    max-height: 600px;
+    overflow-y: auto;
 }
 
-.result-text {
-    background: white;
-    font-family: 'Courier New', monospace;
-    font-size: 0.9rem;
-    color: #2d3748;
-    resize: none;
-    border: 1px solid #e2e8f0;
-}
-
-/* Form Controls */
-.form-control {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 1rem;
-}
-
-.form-control:focus {
-    border-color: #2B7EC1;
-    box-shadow: 0 0 0 3px rgba(43, 126, 193, 0.1);
-    outline: none;
-}
-
-/* Alerts */
-.alert {
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 20px;
+.history-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    font-size: 0.95rem;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+    transition: background 0.2s;
 }
 
-.alert-danger {
-    background: #fff5f5;
-    color: #c53030;
-    border: 1px solid #feb2b2;
+.history-item:hover { background: var(--light-blue); }
+
+.h-icon {
+    width: 40px;
+    height: 40px;
+    background: white;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: var(--primary-blue);
 }
 
-.alert-success {
-    background: #f0fff4;
-    color: #2f855a;
-    border: 1px solid #9ae6b4;
+.h-info h4 { font-size: 18px; margin-bottom: 4px; font-weight: 700; color: var(--dark-blue); }
+.h-info span { font-size: 14px; color: var(--text-dark); font-weight: 500; }
+
+.alert-omnia {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-lg);
+}
+.alert-omnia.error { background: #fee2e2; color: #991b1b; }
+.alert-omnia.success { background: #dcfce7; color: #166534; }
+
+@media (max-width: 992px) {
+    .ocr-layout { grid-template-columns: 1fr; }
 }
 </style>

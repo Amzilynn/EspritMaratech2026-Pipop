@@ -35,6 +35,23 @@ export class UsersController {
         return { message: 'Roles seeded successfully' };
     }
 
+    @UseGuards(JwtAuthGuard)
+    @Get('profile')
+    async getProfile(@Request() req: any) {
+        const user = await this.usersService.findOne(req.user.userId);
+        if (!user) return null;
+        return {
+            ...user,
+            role: user.role?.name || user.role
+        };
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Patch('profile')
+    async updateProfile(@Body() updateDto: any, @Request() req: any) {
+        return this.usersService.update(req.user.userId, updateDto, req.user);
+    }
+
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('ADMIN', 'RESPONSABLE_TERRAIN')
     @Get(':id')

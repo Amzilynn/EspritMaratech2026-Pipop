@@ -2,292 +2,279 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { apiFetch } from '@/services/api'
+import FaceCaptureModal from '@/components/FaceCaptureModal.vue'
+import { useVoiceAssistant } from '@/composables/useVoiceAssistant'
 
 const router = useRouter()
+const { ttsEnabled, currentlySpeaking, speak, stopSpeaking, toggleTts } = useVoiceAssistant()
 
 const email = ref('')
 const password = ref('')
-const selectedRole = ref('user')
 const errorMsg = ref('')
 const isLoading = ref(false)
+const isFaceModalOpen = ref(false)
 
-const roles = [
-    { value: 'user', label: 'Utilisateur' },
-    { value: 'benevole', label: 'Bénévole' },
-    { value: 'responsable', label: 'Responsable' },
-    { value: 'admin', label: 'Administrateur' },
-]
+// Voice Handlers
+const onHoverTitle = () => speak('Page de connexion Omnia. Connectez-vous pour accéder à votre espace.', 'title')
+const onHoverEmail = () => speak(`Champ Adresse Email.`, 'email')
+const onHoverPassword = () => speak(`Champ Mot de Passe.`, 'password')
+const onHoverFaceBtn = () => speak('Utiliser la reconnaissance faciale pour se connecter.', 'face-btn')
+const onHoverSubmit = () => speak('Bouton Se Connecter.', 'submit')
+const onHoverTts = () => speak(`Lecture vocale : ${ttsEnabled.value ? 'activée' : 'désactivée'}. Cliquez pour changer.`, 'tts-toggle')
 
 async function handleLogin() {
     errorMsg.value = ''
-
     if (!email.value || !password.value) {
         errorMsg.value = 'Veuillez remplir tous les champs.'
         return
     }
-
     isLoading.value = true
-
     try {
         const response = await apiFetch('/auth/login', {
             method: 'POST',
-            body: JSON.stringify({
-                email: email.value,
-                password: password.value
-            })
+            body: JSON.stringify({ email: email.value, password: password.value })
         });
-
-        isLoading.value = false
-
-        // Store real user data and token
-        localStorage.setItem('fo_user', JSON.stringify(response.user))
-        localStorage.setItem('access_token', response.access_token)
-        
-        // Sync with backoffice keys for shared session
-        localStorage.setItem('user_email', response.user.email)
-        localStorage.setItem('role', response.user.role.toLowerCase())
-
-        const backendRole = response.user.role.toLowerCase();
-        const backofficeRoles = ['admin', 'responsable_terrain', 'benevole', 'responsable']
-
-        if (backofficeRoles.includes(backendRole)) {
-            // Redirect to backoffice admin panel
-            window.location.href = 'http://localhost:5173/spike-vue-free/'
-        } else {
-            router.push('/')
-        }
+        processLoginSuccess(response)
     } catch (err: any) {
         isLoading.value = false
         errorMsg.value = err.message || 'Identifiants invalides.'
     }
 }
+
+async function handleFaceLogin(file: File) {
+    isFaceModalOpen.value = false
+    isLoading.value = true
+    try {
+        const formData = new FormData()
+        formData.append('file', file)
+        const response = await fetch('http://localhost:3000/auth/face-login', {
+            method: 'POST',
+            body: formData
+        })
+        if (!response.ok) throw new Error('Visage non reconnu')
+        const data = await response.json()
+        processLoginSuccess(data)
+    } catch (err: any) {
+        isLoading.value = false
+        errorMsg.value = err.message || 'Échec de la reconnaissance faciale.'
+    }
+}
+
+function processLoginSuccess(data: any) {
+    localStorage.setItem('fo_user', JSON.stringify(data.user))
+    localStorage.setItem('access_token', data.access_token)
+    localStorage.setItem('user_email', data.user.email)
+    localStorage.setItem('role', data.user.role.toLowerCase())
+
+    const backendRole = data.user.role.toLowerCase();
+    const backofficeRoles = ['admin', 'responsable_terrain', 'benevole', 'responsable']
+
+    if (backofficeRoles.includes(backendRole)) {
+        window.location.href = 'http://localhost:5173/spike-vue-free/'
+    } else {
+        router.push('/')
+    }
+}
 </script>
 
 <template>
-    <div class="auth-page">
-        <div class="auth-container">
-            <div class="auth-card">
-                <div class="auth-header">
+    <div class="auth-splash">
+        <div class="auth-card-wrapper">
+            <div class="card-omnia auth-card shadow-lg">
+                <div class="auth-header text-center" @mouseenter="onHoverTitle" @mouseleave="stopSpeaking">
                     <router-link to="/" class="auth-logo">Omnia</router-link>
-                    <h2>Connexion</h2>
-                    <p>Connectez-vous pour accéder à votre espace</p>
+                    <h1>CONNEXION</h1>
+                    <p>Accédez à votre espace membre <i v-if="ttsEnabled && currentlySpeaking === 'title'" class="fa fa-assistive-listening-systems tts-pulse-icon"></i></p>
                 </div>
 
-                <div v-if="errorMsg" class="auth-error">
-                    <i class="fa fa-exclamation-circle"></i> {{ errorMsg }}
+                <div class="tts-pill-container">
+                    <button class="tts-toggle-pill" :class="{ 'active': ttsEnabled }" @click="toggleTts" @mouseenter="onHoverTts" @mouseleave="stopSpeaking">
+                        <i class="fa" :class="ttsEnabled ? 'fa-volume-up' : 'fa-volume-off'"></i>
+                        <span>{{ ttsEnabled ? 'VOIX ON' : 'VOIX OFF' }}</span>
+                    </button>
                 </div>
 
-                <form @submit.prevent="handleLogin" class="auth-form">
-                    <div class="form-group">
-                        <label for="email"><i class="fa fa-envelope"></i> Adresse Email</label>
-                        <input
-                            id="email"
-                            v-model="email"
-                            type="email"
-                            placeholder="votre@email.com"
+                <div v-if="errorMsg" class="alert alert-danger" role="alert">
+                    <i class="fa fa-exclamation-triangle"></i> {{ errorMsg }}
+                </div>
+
+                <form @submit.prevent="handleLogin" class="mt-4">
+                    <div class="form-group-omnia" :class="{ 'tts-highlight': currentlySpeaking === 'email' }">
+                        <label for="email" @mouseenter="onHoverEmail" @mouseleave="stopSpeaking">ADRESSE EMAIL</label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            v-model="email" 
+                            class="form-control-omnia" 
+                            placeholder="exemple@mail.com"
                             required
-                        />
+                        >
                     </div>
 
-                    <div class="form-group">
-                        <label for="password"><i class="fa fa-lock"></i> Mot de Passe</label>
-                        <input
-                            id="password"
-                            v-model="password"
-                            type="password"
+                    <div class="form-group-omnia" :class="{ 'tts-highlight': currentlySpeaking === 'password' }">
+                        <label for="password" @mouseenter="onHoverPassword" @mouseleave="stopSpeaking">MOT DE PASSE</label>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            v-model="password" 
+                            class="form-control-omnia" 
                             placeholder="••••••••"
                             required
-                        />
+                        >
                     </div>
 
-                    <div class="form-group">
-                        <label for="role"><i class="fa fa-user"></i> Rôle</label>
-                        <select id="role" v-model="selectedRole">
-                            <option v-for="r in roles" :key="r.value" :value="r.value">{{ r.label }}</option>
-                        </select>
-                    </div>
-
-                    <div class="form-options">
-                        <label class="remember-me">
-                            <input type="checkbox" /> Se souvenir de moi
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <label class="checkbox-container">
+                            <input type="checkbox"> 
+                            <span class="checkmark"></span>
+                            Se souvenir de moi
                         </label>
                         <a href="#" class="forgot-link">Mot de passe oublié ?</a>
                     </div>
 
-                    <button type="submit" class="auth-btn" :disabled="isLoading">
-                        <span v-if="isLoading"><i class="fa fa-spinner fa-spin"></i> Connexion...</span>
-                        <span v-else>Se Connecter</span>
+                    <button type="submit" class="btn-omnia btn-primary w-100 mb-3" :disabled="isLoading" @mouseenter="onHoverSubmit" @mouseleave="stopSpeaking">
+                        <span v-if="isLoading"><i class="fa fa-spinner fa-spin"></i> CONNEXION...</span>
+                        <span v-else>SE CONNECTER</span>
+                    </button>
+
+                    <div class="auth-divider">
+                        <span>OU</span>
+                    </div>
+
+                    <button type="button" class="btn-omnia btn-outline w-100" @click="isFaceModalOpen = true" @mouseenter="onHoverFaceBtn" @mouseleave="stopSpeaking">
+                        <i class="fa fa-camera"></i> FACE ID
                     </button>
                 </form>
 
-                <div class="auth-footer">
-                    <p>Pas encore de compte ? <router-link to="/register">S'inscrire</router-link></p>
+                <div class="auth-footer text-center mt-5">
+                    <p>Pas encore membre ? <router-link to="/register" class="text-primary font-weight-bold">Créer un compte</router-link></p>
                 </div>
             </div>
+            
+            <div class="text-center mt-4">
+                <router-link to="/" class="text-white opacity-70"><i class="fa fa-arrow-left"></i> Retour à l'accueil</router-link>
+            </div>
         </div>
+
+        <FaceCaptureModal 
+            v-if="isFaceModalOpen" 
+            @captured="handleFaceLogin" 
+            @close="isFaceModalOpen = false" 
+        />
     </div>
 </template>
 
 <style scoped>
-.auth-page {
+.auth-splash {
     min-height: 100vh;
-    background: linear-gradient(135deg, #1E5A8E 0%, #2B7EC1 50%, #5FA3D8 100%);
+    background: linear-gradient(135deg, var(--secondary-blue) 0%, var(--primary-blue) 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: var(--spacing-lg);
 }
 
-.auth-container {
+.auth-card-wrapper {
     width: 100%;
-    max-width: 440px;
+    max-width: 480px;
 }
 
 .auth-card {
-    background: #fff;
-    border-radius: 16px;
-    padding: 40px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-}
-
-.auth-header {
-    text-align: center;
-    margin-bottom: 30px;
+    padding: var(--spacing-xxl) var(--spacing-xl);
 }
 
 .auth-logo {
-    font-size: 36px;
-    font-weight: 700;
-    color: #2B7EC1;
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--primary-blue);
     text-decoration: none;
-    display: inline-block;
-    margin-bottom: 16px;
+    display: block;
+    margin-bottom: var(--spacing-md);
 }
 
-.auth-header h2 {
+.auth-header h1 {
     font-size: 24px;
-    color: #2D3436;
-    margin-bottom: 6px;
-    font-weight: 600;
+    letter-spacing: 2px;
+    margin-bottom: var(--spacing-xs);
 }
 
 .auth-header p {
-    color: #636E72;
-    font-size: 14px;
+    color: var(--text-dark);
+    font-weight: 500;
+    font-size: 1.1rem;
 }
 
-.auth-error {
-    background: #FFF5F5;
-    color: #D32F2F;
-    padding: 10px 14px;
-    border-radius: 8px;
-    font-size: 14px;
-    margin-bottom: 20px;
-    border: 1px solid #FFCDD2;
+.tts-pill-container {
+    display: flex;
+    justify-content: center;
+    margin-top: var(--spacing-md);
 }
 
-.auth-form .form-group {
-    margin-bottom: 18px;
+.tts-toggle-pill {
+    background: var(--light-blue);
+    color: var(--primary-blue);
+    border: 1px solid var(--primary-blue);
 }
 
-.auth-form label {
-    display: block;
-    font-size: 13px;
-    font-weight: 600;
-    color: #2D3436;
-    margin-bottom: 6px;
+.tts-toggle-pill.active {
+    background: var(--success-green);
+    border-color: var(--success-green);
+    color: white;
 }
 
-.auth-form label i {
-    color: #2B7EC1;
-    margin-right: 6px;
-    width: 14px;
+.auth-divider {
+    text-align: center;
+    margin: var(--spacing-lg) 0;
+    position: relative;
 }
 
-.auth-form input[type="email"],
-.auth-form input[type="password"],
-.auth-form select {
+.auth-divider::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
     width: 100%;
-    padding: 12px 14px;
-    border: 2px solid #E0E0E0;
-    border-radius: 8px;
-    font-size: 14px;
-    transition: border-color 0.3s;
-    background: #FAFAFA;
-    box-sizing: border-box;
+    height: 1px;
+    background: var(--border-color);
 }
 
-.auth-form input:focus,
-.auth-form select:focus {
-    outline: none;
-    border-color: #2B7EC1;
-    background: #fff;
+.auth-divider span {
+    background: white;
+    padding: 0 15px;
+    position: relative;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 700;
 }
 
-.form-options {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 22px;
-    font-size: 13px;
-}
-
-.remember-me {
+.checkbox-container {
     display: flex;
     align-items: center;
-    gap: 6px;
-    color: #636E72;
+    gap: 10px;
     cursor: pointer;
-    font-weight: 400 !important;
+    font-size: 14px;
+    color: var(--text-muted);
 }
 
 .forgot-link {
-    color: #2B7EC1;
-    text-decoration: none;
-    font-weight: 500;
-}
-
-.forgot-link:hover {
-    text-decoration: underline;
-}
-
-.auth-btn {
-    width: 100%;
-    padding: 13px;
-    background: linear-gradient(135deg, #2B7EC1, #1E5A8E);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.auth-btn:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(43, 126, 193, 0.4);
-}
-
-.auth-btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-}
-
-.auth-footer {
-    text-align: center;
-    margin-top: 24px;
     font-size: 14px;
-    color: #636E72;
-}
-
-.auth-footer a {
-    color: #2B7EC1;
-    font-weight: 600;
+    color: var(--primary-blue);
     text-decoration: none;
+    font-weight: 600;
 }
 
-.auth-footer a:hover {
-    text-decoration: underline;
+.alert-danger {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    background-color: #fce4e4;
+    border: 1px solid #f9cccc;
+    color: #cc0000;
+    font-size: 14px;
+    margin-top: var(--spacing-lg);
 }
+
+.opacity-70 { opacity: 0.9; transition: opacity 0.2s; font-weight: 600; }
+.opacity-70:hover { opacity: 1; text-decoration: underline; }
+.text-primary { color: var(--primary-blue) !important; }
+.font-weight-bold { font-weight: 700; }
 </style>

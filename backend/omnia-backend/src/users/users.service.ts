@@ -150,4 +150,20 @@ export class UsersService {
             }
         }
     }
+
+    async findCandidatesForFaceAuth(): Promise<User[]> {
+        return this.usersRepository.find({
+            where: { faceIdEnabled: true },
+            select: ['id', 'email', 'faceEmbedding', 'firstName', 'lastName'],
+            relations: ['role']
+        });
+    }
+
+    async updateFaceEmbedding(id: string, embedding: number[]): Promise<User> {
+        const user = await this.usersRepository.findOne({ where: { id } });
+        if (!user) throw new Error('User not found');
+        user.faceEmbedding = embedding;
+        user.faceIdEnabled = true;
+        return this.usersRepository.save(user);
+    }
 }

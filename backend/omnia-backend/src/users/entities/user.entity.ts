@@ -19,6 +19,12 @@ export class User {
     @Column()
     lastName: string;
 
+    @Column({ type: 'float', array: true, nullable: true, select: false })
+    faceEmbedding: number[];
+
+    @Column({ default: false })
+    faceIdEnabled: boolean;
+
     @ManyToOne(() => Role, (role) => role.users)
     role: Role;
 
