@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, UpdateDateColumn, ManyToOne } from 'typeorm';
 import { VisitBeneficiaire } from '../../visits/entities/visit-beneficiaire.entity';
+import { User } from '../../users/entities/user.entity';
 
 @Entity('beneficiaires')
 export class Beneficiaire {
@@ -87,6 +88,9 @@ export class Beneficiaire {
 
     @UpdateDateColumn()
     scoreLastUpdated: Date;
+
+    @ManyToOne(() => User, { nullable: true })
+    responsable: User;
 
     @OneToMany(() => VisitBeneficiaire, (visitBeneficiaire) => visitBeneficiaire.beneficiaire)
     visitBeneficiaires: VisitBeneficiaire[];

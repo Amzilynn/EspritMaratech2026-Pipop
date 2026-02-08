@@ -5,7 +5,7 @@ import type { UserRole } from '@/stores/auth';
 
 const authStore = useAuthStore();
 const username = ref('Demo User');
-const selectedRole = ref<UserRole>('admin');
+const selectedRole = ref<UserRole>('ADMIN');
 
 function handleLogin() {
     authStore.login(username.value, selectedRole.value);
@@ -28,7 +28,7 @@ function handleLogin() {
                 <v-label class="font-weight-medium mb-1">Role (Demo)</v-label>
                 <v-select
                     v-model="selectedRole"
-                    :items="['admin', 'responsable', 'benevole', 'user']"
+                    :items="['ADMIN', 'RESPONSABLE_TERRAIN', 'BENEVOLE', 'CITOYEN']"
                     variant="outlined"
                     hide-details
                     color="primary"

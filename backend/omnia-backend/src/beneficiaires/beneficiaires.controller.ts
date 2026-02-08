@@ -1,4 +1,4 @@
-                                                                                    import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
 import { BeneficiairesService } from './beneficiaires.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -17,8 +17,8 @@ export class BeneficiairesController {
 
     @Roles('BENEVOLE', 'RESPONSABLE_TERRAIN', 'ADMIN')
     @Get()
-    findAll() {
-        return this.beneficiairesService.findAll();
+    findAll(@Request() req: any) {
+        return this.beneficiairesService.findAll(req.user);
     }
 
     @Roles('BENEVOLE', 'RESPONSABLE_TERRAIN', 'ADMIN')
@@ -29,8 +29,8 @@ export class BeneficiairesController {
 
     @Roles('BENEVOLE', 'RESPONSABLE_TERRAIN', 'ADMIN')
     @Patch(':id')
-    update(@Param('id') id: string, @Body() updateDto: any) {
-        return this.beneficiairesService.update(id, updateDto);
+    update(@Param('id') id: string, @Body() updateDto: any, @Request() req: any) {
+        return this.beneficiairesService.update(id, updateDto, req.user);
     }
 
     @Roles('ADMIN') // Only Admin can delete/archive according to table

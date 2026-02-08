@@ -5,7 +5,7 @@ import { UsersService } from './users/users.service';
 async function bootstrap() {
     const app = await NestFactory.createApplicationContext(AppModule);
     const usersService = app.get(UsersService);
-    const users = await usersService.findAll();
+    const users = await usersService.findAll({ role: 'ADMIN', userId: 'SYSTEM' });
     console.log('START_USERS_LIST');
     for (const u of users) {
         console.log(`USER_DATA|${u.id}|${u.email}|${u.firstName}|${u.lastName}|${u.role?.name}`);

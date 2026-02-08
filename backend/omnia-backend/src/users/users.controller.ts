@@ -1,9 +1,8 @@
-import { Controller, Get, Post, UseGuards, Param, Patch, Delete, Body } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards, Param, Patch, Delete, Body, Request } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import * as bcrypt from 'bcrypt';
 
 @Controller('users')
 export class UsersController {
@@ -12,47 +11,15 @@ export class UsersController {
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('ADMIN', 'RESPONSABLE_TERRAIN')
     @Get()
-    findAll() {
-        return this.usersService.findAll();
+    findAll(@Request() req: any) {
+        return this.usersService.findAll(req.user);
     }
 
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN')
+    @Roles('ADMIN', 'RESPONSABLE_TERRAIN')
     @Post()
-    async create(@Body() createUserDto: any) {
-        try {
-            console.log('Admin creating user:', createUserDto);
-            const { roleName, responsableId, password, ...rest } = createUserDto;
-
-            if (!roleName) throw new Error('roleName is required');
-
-            const role = await this.usersService.findRoleByName(roleName.toUpperCase());
-            if (!role) throw new Error(`Role ${roleName} not found in database`);
-
-            console.log('Found role:', role.name);
-
-            const hashedPassword = await bcrypt.hash(password || 'password123', 10);
-
-            let responsable: any = null;
-            if (responsableId) {
-                console.log('Searching for responsable with ID:', responsableId);
-                responsable = await this.usersService.findOne(responsableId);
-                if (!responsable) console.warn('Responsable not found for ID:', responsableId);
-            }
-
-            const newUser = await this.usersService.create({
-                ...rest,
-                password: hashedPassword,
-                role,
-                responsable,
-            });
-
-            console.log('User created successfully:', newUser.id);
-            return newUser;
-        } catch (error: any) {
-            console.error('Error creating user:', error);
-            throw error;
-        }
+    async create(@Body() createUserDto: any, @Request() req: any) {
+        return this.usersService.create(createUserDto, req.user);
     }
 
     @UseGuards(JwtAuthGuard, RolesGuard)
@@ -76,16 +43,16 @@ export class UsersController {
     }
 
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN')
+    @Roles('ADMIN', 'RESPONSABLE_TERRAIN')
     @Patch(':id')
-    update(@Param('id') id: string, @Body() updateDto: any) {
-        return this.usersService.update(id, updateDto);
+    update(@Param('id') id: string, @Body() updateDto: any, @Request() req: any) {
+        return this.usersService.update(id, updateDto, req.user);
     }
 
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN')
+    @Roles('ADMIN', 'RESPONSABLE_TERRAIN')
     @Delete(':id')
-    remove(@Param('id') id: string) {
-        return this.usersService.remove(id);
+    remove(@Param('id') id: string, @Request() req: any) {
+        return this.usersService.remove(id, req.user);
     }
 }

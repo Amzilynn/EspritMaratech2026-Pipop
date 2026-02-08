@@ -11,6 +11,7 @@ import { AuthModule } from './auth/auth.module';
 import { OcrModule } from './ocr/ocr.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
 import { ResourcesModule } from './resources/resources.module';
+import { PlanningModule } from './planning/planning.module';
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { ResourcesModule } from './resources/resources.module';
       host: process.env.DB_HOST || 'localhost',
       port: parseInt(process.env.DB_PORT || '5432', 10),
       username: process.env.DB_USERNAME || 'postgres',
-      password: process.env.DB_PASSWORD || 'postgres',
+      password: process.env.DB_PASSWORD || '0000',
       database: process.env.DB_NAME || 'omnia_db',
       autoLoadEntities: true,
       synchronize: true, // Be careful with this in production
@@ -35,6 +36,7 @@ import { ResourcesModule } from './resources/resources.module';
     OcrModule,
     IntelligenceModule,
     ResourcesModule,
+    PlanningModule,
   ],
   controllers: [AppController],
   providers: [AppService],

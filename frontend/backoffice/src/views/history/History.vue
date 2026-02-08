@@ -1,3 +1,31 @@
+<script setup lang="ts">
+import { ref, onMounted, computed } from 'vue';
+import { useBeneficiaryStore } from '@/stores/beneficiaryStore';
+import { useVisitStore } from '@/stores/visit.store';
+
+const beneficiaryStore = useBeneficiaryStore();
+const visitStore = useVisitStore();
+
+const selectedFamilyId = ref<string | null>(null);
+
+onMounted(async () => {
+  await beneficiaryStore.fetchBeneficiaries();
+  await visitStore.fetchVisits();
+  if (beneficiaryStore.beneficiaries.length > 0) {
+    selectedFamilyId.value = beneficiaryStore.beneficiaries[0].id;
+  }
+});
+
+const familyHistory = computed(() => {
+  if (!selectedFamilyId.value) return [];
+  
+  // Filter visits where this family was visited
+  return visitStore.visits.filter(v => 
+    v.visitBeneficiaires?.some((vb: any) => vb.beneficiaireId === selectedFamilyId.value || vb.beneficiaire?.id === selectedFamilyId.value)
+  ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+});
+</script>
+
 <template>
   <section class="page-container">
     <header class="page-header">
@@ -8,47 +36,55 @@
       </div>
     </header>
 
-    <div class="form-card" style="max-width: 400px; margin-bottom: 30px;">
+    <div class="form-card" style="max-width: 500px; margin-bottom: 30px;">
       <div class="field-group">
         <label class="field-label">Sélectionner une famille</label>
-        <select class="field-input" v-model="selectedFamily">
-          <option value="Famille Ben Ali">Famille Ben Ali</option>
-          <option value="Famille Trabelsi">Famille Trabelsi</option>
-          <option value="Famille Gueddafi">Famille Gueddafi</option>
+        <select class="field-input" v-model="selectedFamilyId">
+          <option v-for="fam in beneficiaryStore.beneficiaries" :key="fam.id" :value="fam.id">
+            {{ fam.nomFamille }} ({{ fam.codeFamille || 'N/A' }})
+          </option>
         </select>
       </div>
     </div>
 
-    <div class="timeline">
-      <div class="timeline-item">
+    <div v-if="visitStore.loading" class="text-center pa-10">
+      <v-progress-circular indeterminate color="primary"></v-progress-circular>
+      <p class="mt-2 subtle">Chargement de l'historique...</p>
+    </div>
+    
+    <div v-else-if="visitStore.error" class="text-center pa-10">
+      <v-icon color="error" size="48">mdi-alert-circle-outline</v-icon>
+      <p class="text-error mt-2">{{ visitStore.error }}</p>
+    </div>
+    
+    <div v-else-if="familyHistory.length === 0" class="timeline text-center">
+      <p class="py-10 text-grey">Aucune visite enregistrée pour cette famille.</p>
+    </div>
+
+    <div v-else class="timeline">
+      <div v-for="visit in familyHistory" :key="visit.id" class="timeline-item">
         <div class="timeline-dot"></div>
         <div class="timeline-content">
-          <h3>Visite terrain - 15/10/2023</h3>
-          <p>Visite de contrôle annuelle. Situation stable.</p>
-        </div>
-      </div>
-      <div class="timeline-item">
-        <div class="timeline-dot"></div>
-        <div class="timeline-content">
-          <h3>Aide financière - 01/12/2023</h3>
-          <p>Montant: 200 TND - Validé</p>
-        </div>
-      </div>
-      <div class="timeline-item">
-        <div class="timeline-dot"></div>
-        <div class="timeline-content">
-          <h3>Inscription - 01/01/2023</h3>
-          <p>Famille ajoutée au programme d'assistance.</p>
+          <div class="d-flex justify-space-between align-start">
+            <h3>Visite terrain - {{ new Date(visit.date).toLocaleDateString() }}</h3>
+            <v-chip size="x-small" color="primary" variant="flat">Effectuée</v-chip>
+          </div>
+          <p class="text-subtitle-2 mb-1">Visiteur: {{ visit.visitorName }}</p>
+          <p class="mb-3">{{ visit.notes || 'Aucune note pour cette visite.' }}</p>
+          
+          <!-- Détails de l'intervention -->
+          <div v-if="visit.visitBeneficiaires?.[0]?.aids?.length" class="aid-details-box mt-2">
+            <h4 class="text-overline mb-1">Détails de l'intervention :</h4>
+            <div v-for="aid in visit.visitBeneficiaires[0].aids" :key="aid.id" class="d-flex align-center text-body-2 mb-1">
+              <v-icon size="14" color="success" class="mr-2">mdi-package-variant-closed</v-icon>
+              <span>{{ aid.type }} - {{ aid.natureIntervention }} ({{ aid.quantite }} {{ aid.unite }})</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </section>
 </template>
-
-<script setup lang="ts">
-import { ref } from 'vue';
-const selectedFamily = ref('Famille Ben Ali');
-</script>
 
 <style scoped>
 .page-container { background: linear-gradient(180deg, #f7f8fb 0%, #eef2f7 100%); min-height: 100%; padding: 28px; }
@@ -68,4 +104,6 @@ h2 { margin: 0; font-size: 26px; color: #0f172a; }
 .timeline-content { flex: 1; }
 .timeline-content h3 { margin: 0 0 8px; font-size: 16px; color: #0f172a; }
 .timeline-content p { margin: 0; color: #6b7280; }
+.aid-details-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
+.text-overline { font-size: 10px; font-weight: 700; color: #64748b; }
 </style>

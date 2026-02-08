@@ -7,15 +7,15 @@ import { apiFetch } from '@/services/api';
 const authStore = useAuthStore();
 const email = ref('');
 const password = ref('');
-const selectedRole = ref<UserRole>('user');
+const selectedRole = ref<UserRole>('CITOYEN');
 const errorMsg = ref('');
 const isLoading = ref(false);
 
 const roles = [
-    { value: 'user', label: 'Utilisateur' },
-    { value: 'benevole', label: 'Bénévole' },
-    { value: 'responsable', label: 'Responsable' },
-    { value: 'admin', label: 'Administrateur' },
+    { value: 'CITOYEN', label: 'Utilisateur' },
+    { value: 'BENEVOLE', label: 'Bénévole' },
+    { value: 'RESPONSABLE_TERRAIN', label: 'Responsable' },
+    { value: 'ADMIN', label: 'Administrateur' },
 ];
 
 async function handleLogin() {

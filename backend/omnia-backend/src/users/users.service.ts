@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { Role } from './entities/role.entity';
 import { randomUUID } from 'crypto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
@@ -22,25 +23,42 @@ export class UsersService {
         });
     }
 
-    async create(userData: Partial<User>): Promise<User> {
-        // Generate UUID manually if not provided (workaround for DB not having uuid_generate_v4())
-        const userWithId = {
-            ...userData,
-            id: userData.id || randomUUID()
-        };
+    async create(userData: any, currentUser?: any): Promise<User> {
+        let { roleName, responsableId, password, ...rest } = userData;
 
-        console.log('Creating user with data:', {
-            ...userWithId,
-            password: '[REDACTED]',
-            responsable: userWithId.responsable ? { id: (userWithId.responsable as any).id } : null
-        });
+        // Generate UUID manually
+        const id = userData.id || randomUUID();
 
-        const user = this.usersRepository.create(userWithId);
-        const savedUser = await this.usersRepository.save(user);
+        // Hash password if not already hashed (very basic check)
+        if (password && !password.startsWith('$2b$')) {
+            password = await bcrypt.hash(password, 10);
+        }
 
-        console.log('User saved with ID:', savedUser.id, 'responsableId:', (savedUser as any).responsableId);
+        let role = userData.role;
+        if (roleName && !role) {
+            role = await this.findRoleByName(roleName.toUpperCase());
+        }
 
-        return savedUser;
+        let responsable = userData.responsable;
+        if (responsableId && !responsable) {
+            responsable = await this.findOne(responsableId);
+        }
+
+        // Auto-assign responsable if a Responsable creates a user
+        if (!responsable && currentUser && currentUser.role === 'RESPONSABLE_TERRAIN') {
+            responsable = await this.findOne(currentUser.userId);
+            console.log(`[UsersService] Auto-assigning responsible ${currentUser.userId} to new user`);
+        }
+
+        const user = this.usersRepository.create({
+            ...rest,
+            id,
+            password,
+            role,
+            responsable
+        }) as any;
+
+        return this.usersRepository.save(user);
     }
 
     async findRoleByName(name: string): Promise<Role | null> {
@@ -51,10 +69,25 @@ export class UsersService {
         return this.rolesRepository.find();
     }
 
-    async findAll(): Promise<User[]> {
-        return this.usersRepository.find({
+    async findAll(currentUser: any): Promise<User[]> {
+        const isAdmin = currentUser.role === 'ADMIN';
+        console.log(`[DEBUG] Users.findAll called by ${currentUser.role} (ID: ${currentUser.userId})`);
+
+        const filter: any = {
             relations: ['role', 'responsable']
-        });
+        };
+
+        if (!isAdmin) {
+            filter.where = [
+                { responsable: { id: currentUser.userId } },
+                { id: currentUser.userId }
+            ];
+            console.log(`[DEBUG] Filter applied: (responsable.id = ${currentUser.userId} OR id = ${currentUser.userId})`);
+        }
+
+        const users = await this.usersRepository.find(filter);
+        console.log(`[DEBUG] Returning ${users.length} users`);
+        return users;
     }
 
     async findOne(id: string): Promise<User | null> {
@@ -64,19 +97,28 @@ export class UsersService {
         });
     }
 
-    async update(id: string, userData: any): Promise<User> {
+    async update(id: string, userData: any, currentUser: any): Promise<User> {
         const user = await this.findOne(id);
         if (!user) throw new Error('User not found');
 
+        // Authorization Check
+        const isSelf = currentUser.userId === user.id;
+        const isAdmin = currentUser.role === 'ADMIN';
+        const isTheirResponsable = user.responsable?.id === currentUser.userId;
+
+        if (!isAdmin && !isSelf && !isTheirResponsable) {
+            throw new ForbiddenException('You do not have permission to update this user');
+        }
+
         const { responsableId, roleName, ...rest } = userData;
 
-        if (responsableId) {
+        if (responsableId && isAdmin) { // Only Admin can change responsable
             user.responsable = await this.findOne(responsableId) as any;
-        } else if (responsableId === null) {
+        } else if (responsableId === null && isAdmin) {
             user.responsable = null as any;
         }
 
-        if (roleName) {
+        if (roleName && isAdmin) { // Only Admin can change role
             const role = await this.findRoleByName(roleName.toUpperCase());
             if (role) user.role = role;
         }
@@ -85,7 +127,17 @@ export class UsersService {
         return this.usersRepository.save(user);
     }
 
-    async remove(id: string): Promise<void> {
+    async remove(id: string, currentUser: any): Promise<void> {
+        const user = await this.findOne(id);
+        if (!user) throw new Error('User not found');
+
+        const isAdmin = currentUser.role === 'ADMIN';
+        const isTheirResponsable = user.responsable?.id === currentUser.userId;
+
+        if (!isAdmin && !isTheirResponsable) {
+            throw new ForbiddenException('You do not have permission to delete this user');
+        }
+
         await this.usersRepository.delete(id);
     }
 
