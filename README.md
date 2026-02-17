@@ -1,8 +1,8 @@
-# 🌍 Association Omnia - Humanitarian Intelligence Platform
+#  Association Omnia - Humanitarian Intelligence Platform
 
 Omnia is a modern, full-stack platform designed for a Tunisian humanitarian association. It aims to bridge the gap between financial support and moral assistance for underprivileged families, the elderly, and people with reduced mobility.
 
-## 🏗️ Project Architecture
+##  Project Architecture
 
 The platform is built using a modern microservice-style architecture:
 
