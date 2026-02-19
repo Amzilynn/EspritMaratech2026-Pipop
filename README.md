@@ -45,7 +45,7 @@ cd backend/omnia-backend
 npm install
 npm run start:dev
 ```
-*Runs on: http://localhost:3000*
+
 
 #### 2. ML Service
 ```bash
@@ -53,7 +53,7 @@ cd ml-service
 pip install -r requirements.txt
 python main.py
 ```
-*Runs on: http://localhost:8001*
+
 
 #### 3. Front Office
 ```bash
@@ -61,7 +61,7 @@ cd frontend/frontoffice
 npm install
 npm run dev
 ```
-*Runs on: http://localhost:5174*
+
 
 #### 4. Back Office
 ```bash
