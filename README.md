@@ -21,7 +21,7 @@ The platform is built using a modern microservice-style architecture:
 *   **OCR Scanner**: Medical prescription extraction using EasyOCR.
 *   **Face Recognition**: Biometric identity verification using VGG-Face models.
 
-## 🌟 Key Features
+##  Key Features
 
 *   ** Accessibility First**: Built to WCAG standards with a built-in Voice Assistant that provides spoken descriptions and visual feedback (pulsing animations).
 *   ** Medical OCR**: Users can scan their medical prescriptions; the system automatically extracts the text and maintains a digital history.
